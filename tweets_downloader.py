@@ -15,15 +15,23 @@ import time
 import re
 
 class TweetsDownloader:
-    def __init__(self, keys_filename, key_set, path_to_private_key_file=None, results_path=None) -> None:
+    def __init__(self, keys_filename, key_set, path_to_google_cloud_private_key_file=None, results_path=None,
+                academic_privilege=False) -> None:
 
         self.read_credentials(keys_filename, key_set)
 
         self.tweet_date_format = "%Y-%m-%d %H:%M:%S"
         self.results_path = results_path
 
-        if path_to_private_key_file:
-          self.gcs_manager = GoogleCloudStorageManager(path_to_private_key_file)
+        if academic_privilege:
+            self.search_url = "https://api.twitter.com/2/tweets/search/all" #Change to the endpoint you want to collect data from
+            self.maximum_query_size = 1024
+        else:
+            self.search_url = 'https://api.twitter.com/2/tweets/search/recent'
+            self.maximum_query_size = 512
+
+        if path_to_google_cloud_private_key_file:
+          self.gcs_manager = GoogleCloudStorageManager(path_to_google_cloud_private_key_file)
 
     def read_credentials(self, keys_filename, key_set):
         with open(keys_filename) as file:
@@ -44,12 +52,7 @@ class TweetsDownloader:
         headers = {"Authorization": "Bearer {}".format(bearer_token)}
         return headers
 
-    def create_url(self, keyword, start_date, end_date, max_results=10, academic_privilege=False):
-        
-        if academic_privilege:
-            search_url = "https://api.twitter.com/2/tweets/search/all" #Change to the endpoint you want to collect data from
-        else:
-            search_url = 'https://api.twitter.com/2/tweets/search/recent'
+    def create_url(self, keyword, start_date, end_date, max_results=10):
         
         #change params based on the endpoint you are using
         query_params = {'query': keyword,
@@ -84,9 +87,9 @@ class TweetsDownloader:
                         'next_token': {}
                       }
 
-        return (search_url, query_params)
+        return (self.search_url, query_params)
 
-    def connect_to_endpoint(self, url, headers, params, next_token=None, academic_privilege=False):
+    def connect_to_endpoint(self, url, headers, params, next_token=None):
         params['next_token'] = next_token   #params object received from create_url function
         response = requests.request("GET", url, headers=headers, params=params)
         # print("Endpoint Response Code: " + str(response.status_code))
@@ -212,8 +215,8 @@ class TweetsDownloader:
           current += delta
 
     def get_historical_tweets_from_hashtags(self, query, bearer_token, start_date, end_date, 
-                                            number_of_tweets_per_call, max_count, 
-                                            limit_tweets_per_period, tweets_file_name, save_on_disk):
+                                            number_of_tweets_per_call, max_count, limit_tweets_per_period, 
+                                            tweets_file_name, save_on_disk):
       #Inputs for tweets
       headers = self.create_headers(bearer_token)
 
@@ -286,12 +289,12 @@ class TweetsDownloader:
     # Your queries will be limited depending on which access level you are using. 
     # If you have Essential or Elevated access, your query can be 512 characters long.
     # If you have Academic Research access, your query can be 1024 characters long. 
-    def break_query(self, query, maximum_query_size=1024, language=None):
+    def break_query(self, query, language=None):
     
-      if language is None:
+      if language is None or len(language) == 0:
         language = ''
 
-      if len(query+' lang:'+language) > maximum_query_size:
+      if len(query+' lang:'+language) > self.maximum_query_size:
 
         hashtags = query.split('OR')
         hashtags_chunks = []
@@ -299,7 +302,7 @@ class TweetsDownloader:
         temp_query = 'lang:'+language+' '
 
         for i, hashtag in enumerate(hashtags):
-          if len(temp_query+' OR '+hashtag) <= maximum_query_size:
+          if len(temp_query+' OR '+hashtag) <= self.maximum_query_size:
             if i == 0:
               temp_query += hashtag
             else:
@@ -330,7 +333,7 @@ class TweetsDownloader:
 
       query = ' OR '.join(query.split())
 
-      query_list = self.break_query(query, maximum_query_size=512, language=language)
+      query_list = self.break_query(query, language=language)
 
       query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
             
@@ -372,8 +375,9 @@ class TweetsDownloader:
                   if datetime.strptime(new_start_date, date_format) > datetime.strptime(start_date, date_format):
                       start_date = new_start_date
               
-              self.get_historical_tweets_from_hashtags(query_list[x], bearer_token, start_date, end_date, number_of_tweets_per_call, max_count, 
-                                                  limit_tweets_per_period, tweets_file_name, save_on_disk)
+              self.get_historical_tweets_from_hashtags(query_list[x], bearer_token, start_date, end_date, 
+                                                       number_of_tweets_per_call, max_count, 
+                                                       limit_tweets_per_period, tweets_file_name, save_on_disk)
               
     def upload_to_cloud_storage(self, bucket_name):
         # bucket_name = 'guto_test_bucket'

@@ -4,6 +4,11 @@ import mimetypes
 from google.cloud import storage # pip install google-cloud-storage 
 import glob
 
+# References: 
+# Interact with GCS: https://www.youtube.com/watch?v=1cDqRrw3t9o
+# Create keys: https://www.skytowner.com/explore/guide_on_creating_a_service_account_and_private_keys_in_google_cloud_platform
+
+
 def find_between( s, first, last ):
     try:
         start = s.index( first ) + len( first )

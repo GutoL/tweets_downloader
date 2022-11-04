@@ -1,19 +1,21 @@
 from tweets_downloader import TweetsDownloader
 import sys
 import json
-import pathlib
+# import pathlib
 
-if len(sys.argv) == 1:
+# path = str(pathlib.Path(__file__).parent.resolve())+'/' 
+
+if len(sys.argv) <= 1:
     print('Please, run: pythton 3 main.py config_file_name.json')
     exit(1)
 
-path = str(pathlib.Path(__file__).parent.resolve())+'/' 
 
 config = json.load(open(sys.argv[1]))
 
 tweets_downloader = TweetsDownloader(keys_filename=config['keys_filename'], key_set=config['key_set'],
-                                     path_to_private_key_file=config['path_to_private_key_file'],
-                                     results_path=config['results_path'])
+                                     path_to_google_cloud_private_key_file=config['path_to_google_cloud_private_key_file'],
+                                     results_path=config['results_path'],
+                                     academic_privilege=config['academic_privilege'])
 
 # start_list =   ['2022-10-30 22:00:00'] # ['2022-10-18T22:00:00.000Z',]
 # end_list =     ['2022-10-30 23:59:00'] # ['2022-10-18T23:59:00.000Z',]
@@ -40,9 +42,15 @@ tweets_downloader = TweetsDownloader(keys_filename=config['keys_filename'], key_
 
 # df.to_csv('tweets.csv', index=False)
 
-tweets_downloader.download_tweets(hashtags_file=config['query_file'], start_date_list=config['start_list'], 
-                                  end_date_list=config['end_list'], limit_tweets_per_period=True,
+if len(config['start_list']) != len(config['end_list']):
+    print('start_list and end_list must have the same size!')
+    exit(1)
+
+tweets_downloader.download_tweets(hashtags_file=config['query_file'], 
+                                  start_date_list=config['start_list'], 
+                                  end_date_list=config['end_list'], 
                                   language=config['language'],
                                   file_extension=config['file_extension'],
                                   number_of_tweets_per_call=config['number_of_tweets_per_call'], 
-                                  save_on_disk=config['save_ond_disk'])
+                                  limit_tweets_per_period=True,
+                                  save_on_disk=True)
