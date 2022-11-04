@@ -1,0 +1,14 @@
+{
+    "query_file":"config_files/hashtags.txt",
+    "keys_filename":"config_files/twitter_keys.yaml",
+    "key_set": "search_tweets_v1",
+    "path_to_private_key_file":"config_files/stable-plasma-690-686708fe9d44.json",
+    "start_list":["2022-10-30 22:00:00"],
+    "end_list":["2022-10-30 23:59:00"],
+    "results_path": "results/",
+    
+    "language": "pt",
+    "file_extension": "csv",
+    "number_of_tweets_per_call": 11,
+    "save_ond_disk": true
+}
