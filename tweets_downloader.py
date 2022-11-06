@@ -216,7 +216,7 @@ class TweetsDownloader:
 
     def get_historical_tweets_from_hashtags(self, query, bearer_token, start_date, end_date, 
                                             number_of_tweets_per_call, max_count, limit_tweets_per_period, 
-                                            tweets_file_name, save_on_disk):
+                                            tweets_file_name, save_on_disk, time_interval_break):
       #Inputs for tweets
       headers = self.create_headers(bearer_token)
 
@@ -227,14 +227,24 @@ class TweetsDownloader:
       count = 0 # Counting tweets per time period
       flag = True
       next_token = None
-
-      time_interval = 30 # MINUTES
+      
       
       start_date = datetime.strptime(start_date, self.tweet_date_format)
       end_date = datetime.strptime(end_date, self.tweet_date_format) # "%Y-%m-%dT%H:%M:%S.%fZ"
 
-      dts = [dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ") for dt in self.datetime_range(start_date, end_date, timedelta(minutes=time_interval))]
+      if list(time_interval_break.keys())[0] == 'days':
+          variation = timedelta(days=time_interval_break['days'])
 
+      elif list(time_interval_break.keys())[0] == 'hours':
+          variation = timedelta(hours=time_interval_break['hours'])
+
+      elif list(time_interval_break.keys())[0] == 'minutes':
+          variation = timedelta(minutes=time_interval_break['minutes'])
+            
+      end_date += variation
+
+      dts = [dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ") for dt in self.datetime_range(start_date, end_date, variation)]
+      
       for x in range(len(dts)-1):
         first_date = dts[x]
         second_date = dts[x+1]
@@ -320,9 +330,9 @@ class TweetsDownloader:
 
 
 
-    def download_tweets(self, hashtags_file, start_date_list, end_date_list, limit_tweets_per_period, language=None,
-                        date_format='%Y-%m-%d %H:%M:%S', file_extension='csv',
-                        number_of_tweets_per_call=100, save_on_disk=True):    
+    def download_tweets(self, hashtags_file, start_date_list, end_date_list, limit_tweets_per_period, 
+                        time_interval_break, language=None, date_format='%Y-%m-%d %H:%M:%S', 
+                        file_extension='csv', number_of_tweets_per_call=100, save_on_disk=True):    
       
       # Max tweets per time period. If you define that there is no limit, 
       # this variable will be not considered
@@ -377,7 +387,8 @@ class TweetsDownloader:
               
               self.get_historical_tweets_from_hashtags(query_list[x], bearer_token, start_date, end_date, 
                                                        number_of_tweets_per_call, max_count, 
-                                                       limit_tweets_per_period, tweets_file_name, save_on_disk)
+                                                       limit_tweets_per_period, tweets_file_name, save_on_disk,
+                                                       time_interval_break=time_interval_break)
               
     def upload_to_cloud_storage(self, bucket_name):
         # bucket_name = 'guto_test_bucket'

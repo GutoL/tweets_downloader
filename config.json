@@ -1,14 +1,15 @@
 {
-    "query_file":"config_files/hashtags.txt",
+    "query_file":"config_files/cycling_hashtags.txt",
     "keys_filename":"config_files/twitter_keys.yml",
-    "key_set": "search_tweets_v1",
+    "key_set": "search_tweets_v2",
     "path_to_google_cloud_private_key_file":"config_files/stable-plasma-690-686708fe9d44.json",
-    "start_list":["2022-10-30 22:00:00"],
-    "end_list":["2022-10-30 23:59:00"],
+    "start_list":["2021-12-01 00:00:00"],
+    "end_list":["2021-12-06 23:59:59"],
     "results_path": "tweets/",
     
-    "language": "pt",
+    "time_interval_break":{"days":1},
+    "language": "",
     "file_extension": "csv",
-    "number_of_tweets_per_call": 11,
-    "academic_privilege": false
+    "number_of_tweets_per_call": 100,
+    "academic_privilege": true
 }
