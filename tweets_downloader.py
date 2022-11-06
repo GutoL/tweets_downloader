@@ -106,6 +106,7 @@ class TweetsDownloader:
 
         #Loop through each tweet
         for tweet in json_response['data']:
+
             row = {}
             
             # We will create a variable for each since some of the keys might not exist for some tweets
@@ -184,11 +185,10 @@ class TweetsDownloader:
 
         # Append the result to the CSV file
         # tweets_df = tweets_df.append(new_rows, ignore_index=True, sort=False)
-        print('___________________________________________')
+        # print('___________________________________________')
         pd.DataFrame(new_rows)
-        print('___________________________________________')
-        tweets_df = pd.concat([tweets_df, pd.DataFrame(new_rows)], ignore_index=True, sort=False)
         
+        tweets_df = pd.concat([tweets_df, pd.DataFrame(new_rows)], ignore_index=True, sort=False)
         
         tweets_df['created_at'] = tweets_df['created_at'].apply(self.data_convert)        
         
@@ -303,13 +303,15 @@ class TweetsDownloader:
     
       if language is None or len(language) == 0:
         language = ''
+      else:
+        language = 'lang:'+language
 
       if len(query+' lang:'+language) > self.maximum_query_size:
 
         hashtags = query.split('OR')
         hashtags_chunks = []
 
-        temp_query = 'lang:'+language+' '
+        temp_query = language+' '
 
         for i, hashtag in enumerate(hashtags):
           if len(temp_query+' OR '+hashtag) <= self.maximum_query_size:
@@ -321,13 +323,12 @@ class TweetsDownloader:
           else:
             hashtags_chunks.append(temp_query)
 
-            temp_query = 'lang:'+language+' '+hashtag
+            temp_query = language+' '+hashtag
 
         return hashtags_chunks
       
       else:
-        return [query+' lang:'+language]
-
+        return [query+' '+language]
 
 
     def download_tweets(self, hashtags_file, start_date_list, end_date_list, limit_tweets_per_period, 

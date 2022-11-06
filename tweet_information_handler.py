@@ -1,5 +1,6 @@
 #@title Data Tweets Handler & Data Models
 from copy import deepcopy
+import datetime
 
 class User:
   def __init__(self) -> None:
@@ -135,6 +136,13 @@ class TweetInformationHandler():
     def __init__(self, json_response) -> None:
        self.json_response = json_response 
 
+    def convert_date(self, date):
+      if len(date) > 19:
+        date = date[:19]
+
+      date = datetime.datetime.strptime(date.replace('T',' '), "%Y-%m-%d %H:%M:%S")
+      return date
+
     def get_entities_information_tweet(self, row, tweet_data, main_tag, basic_tag, tags_list):
         # main_tag = 'entities'
 
@@ -206,7 +214,14 @@ class TweetInformationHandler():
         
         return row
 
-    
+    def guess_date(self, string):
+      for fmt in ["%Y/%m/%d", "%d-%m-%Y", "%Y%m%d"]:
+          try:
+              return datetime.datetime.strptime(string, fmt).date()
+          except ValueError:
+              continue
+      raise ValueError(string)
+
     def get_data_information_tweets(self):
         new_rows = []
         
@@ -219,11 +234,7 @@ class TweetInformationHandler():
             row['id'] = tweet_response['id']
             row['author_id'] = tweet_response['author_id']
 
-            
-            if len(tweet_response['created_at']) > 19:
-                row['created_at'] = tweet_response['created_at'][:19]
-            else:
-                row['created_at'] = tweet_response['created_at']
+            row['created_at'] = self.convert_date(tweet_response['created_at'])
 
             row['lang'] = tweet_response['lang']
             row['text'] = tweet_response['text']
@@ -355,8 +366,10 @@ class TweetInformationHandler():
                         if u_key == 'public_metrics':
                           for u_key_2 in user['public_metrics']:
                                 user_temp['public_metrics_'+u_key_2] = user['public_metrics'][u_key_2]
-                        elif u_key == 'created_at' and len(user[u_key]) > 19:
-                          user_temp[u_key] = user[u_key][:19]                          
+                        
+                        elif u_key == 'created_at':
+                          user_temp[u_key] = self.convert_date(user[u_key])
+                        
                         else:
                             # print(u_key, user[u_key])
                             user_temp[u_key] = user[u_key]
