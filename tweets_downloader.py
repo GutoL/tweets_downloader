@@ -152,7 +152,7 @@ class TweetsDownloader:
 
     def data_convert(self, src):
         
-        print(src)
+        # print(src)
 
         data = pd.to_datetime(src)
         # print('date of latest tweet downloaded:', data)
