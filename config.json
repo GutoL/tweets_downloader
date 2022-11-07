@@ -3,7 +3,7 @@
     "keys_filename":"config_files/twitter_keys.yml",
     "key_set": "search_tweets_v2",
     "path_to_google_cloud_private_key_file":"config_files/stable-plasma-690-686708fe9d44.json",
-    "start_list":["2021-12-01 00:00:00"],
+    "start_list":["2021-11-30 00:00:01"],
     "end_list":["2021-12-31 23:59:59"],
     "results_path": "results/",
     

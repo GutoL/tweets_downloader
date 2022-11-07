@@ -151,7 +151,10 @@ class TweetsDownloader:
             counter += 1
 
     def data_convert(self, src):
-        return pd.to_datetime(src)
+        data = pd.to_datetime(src)
+        # print('date of latest tweet downloaded:', data)
+
+        return data
 
     def append_to_csv(self, json_response, tweets_file_name, save_on_disk=True):
         tweets_file_name = Path(tweets_file_name)
@@ -186,15 +189,20 @@ class TweetsDownloader:
         # Append the result to the CSV file
         # tweets_df = tweets_df.append(new_rows, ignore_index=True, sort=False)
         # print('___________________________________________')
-        pd.DataFrame(new_rows)
         
         tweets_df = pd.concat([tweets_df, pd.DataFrame(new_rows)], ignore_index=True, sort=False)
+
+        # droping tweets that does not contain text or date
+        tweets_df.dropna(subset=['created_at', 'text'], how='all', inplace=True)
         
         tweets_df['created_at'] = tweets_df['created_at'].apply(self.data_convert)        
         
         tweets_df['created_at'] = tweets_df['created_at'].dt.strftime(self.tweet_date_format)
 
         tweets_df.sort_values(by=['created_at'], inplace=True, ascending=True)
+
+        print('Last dates:')
+        print(tweets_df['created_at'])
 
         if save_on_disk:
             if '.csv' in tweets_file_name.name:
@@ -229,8 +237,8 @@ class TweetsDownloader:
       next_token = None
       
       
-      start_date = datetime.strptime(start_date, self.tweet_date_format)
-      end_date = datetime.strptime(end_date, self.tweet_date_format) # "%Y-%m-%dT%H:%M:%S.%fZ"
+      start_date = datetime.strptime(start_date, self.tweet_date_format) # "%Y-%m-%dT%H:%M:%S.%fZ"
+      end_date = datetime.strptime(end_date, self.tweet_date_format) 
 
       if list(time_interval_break.keys())[0] == 'days':
           variation = timedelta(days=time_interval_break['days'])
@@ -251,6 +259,7 @@ class TweetsDownloader:
         
         # Check if flag is true
         while flag:
+          print('starting while...')
           ## Check if max_count reached
           if count >= max_count and limit_tweets_per_period == True:
               break
@@ -282,7 +291,8 @@ class TweetsDownloader:
             #Since this is the final request, turn flag to false to move to the next time period.
             flag = False
             next_token = None
-
+          
+          print('finishing while...')
       print("Total number of results: ", total_tweets)
 
     def create_query(self, hashtags_file):
