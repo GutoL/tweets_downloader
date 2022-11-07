@@ -151,6 +151,9 @@ class TweetsDownloader:
             counter += 1
 
     def data_convert(self, src):
+        
+        print(src)
+
         data = pd.to_datetime(src)
         # print('date of latest tweet downloaded:', data)
 
@@ -167,7 +170,7 @@ class TweetsDownloader:
         #Open OR create the tweets CSV file
         if os.path.isfile(tweets_file_name):
             if 'csv' in tweets_file_name.name:
-                tweets_df = pd.read_csv(tweets_file_name)
+                tweets_df = pd.read_csv(tweets_file_name, sep=',')
             elif 'xlsx' in tweets_file_name.name:
                 tweets_df = pd.read_excel(tweets_file_name, sheet_name='tweets')
             
@@ -195,6 +198,7 @@ class TweetsDownloader:
         # droping tweets that does not contain text or date
         tweets_df.dropna(subset=['created_at', 'text'], how='all', inplace=True)
         
+        print(tweets_df)
         tweets_df['created_at'] = tweets_df['created_at'].apply(self.data_convert)        
         
         tweets_df['created_at'] = tweets_df['created_at'].dt.strftime(self.tweet_date_format)
@@ -206,7 +210,7 @@ class TweetsDownloader:
 
         if save_on_disk:
             if '.csv' in tweets_file_name.name:
-                tweets_df.to_csv(tweets_file_name, index=False)                
+                tweets_df.to_csv(tweets_file_name, index=False, sep=',')                
 
             elif '.xlsx' in tweets_file_name.name:
                 with pd.ExcelWriter(tweets_file_name) as writer:  
@@ -384,7 +388,7 @@ class TweetsDownloader:
               
               if os.path.isfile(tweets_file_name):
                   if 'csv' in tweets_file_name:
-                      df_date_temp = pd.read_csv(tweets_file_name)
+                      df_date_temp = pd.read_csv(tweets_file_name, sep=',')
                   else:
                       df_date_temp = pd.read_excel(tweets_file_name, sheet_name='tweets')
 
