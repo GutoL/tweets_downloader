@@ -286,14 +286,15 @@ class TweetsDownloader:
       print("Total number of results: ", total_tweets)
 
     def create_query(self, hashtags_file):
+
       fp = open(hashtags_file, 'r', encoding="utf8")
 
-      hashtags_list = [hashtag.replace('\n', '').replace('\t', '').strip() for hashtag in fp.readlines()]
-      hashtags_list = [hashtag for hashtag in hashtags_list if len(hashtag) > 0]
+      hashtags_list = [hashtag.replace('\t', '').strip() for hashtag in fp.readlines()]
+      hashtags_list = ['"'+hashtag+'"' for hashtag in hashtags_list if len(hashtag) > 0]
 
       fp.close()
 
-      return ' '.join(hashtags_list)
+      return hashtags_list
 
 
     # Your queries will be limited depending on which access level you are using. 
@@ -332,24 +333,26 @@ class TweetsDownloader:
 
 
     def download_tweets(self, hashtags_file, start_date_list, end_date_list, limit_tweets_per_period, 
-                        time_interval_break, language=None, date_format='%Y-%m-%d %H:%M:%S', 
-                        file_extension='csv', number_of_tweets_per_call=100, save_on_disk=True):    
+                        time_interval_break, language=None, file_extension='csv', 
+                        number_of_tweets_per_call=100, save_on_disk=True):    
       
       # Max tweets per time period. If you define that there is no limit, 
       # this variable will be not considered
       max_count = 10  
-
-      # query = "xbox lang:en"
-      query = self.create_query(hashtags_file)
-
-      query = ' OR '.join(query.split())
-
-      query_list = self.break_query(query, language=language)
-
-      query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
-            
+      
       bearer_token = self.auth()
 
+      query = self.create_query(hashtags_file)
+      
+      processed_query = query[0]
+
+      for term in query[1:]:
+        processed_query += ' OR ' + term
+    
+      query_list = self.break_query(processed_query, language=language)
+
+      query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
+      
       for start_date, end_date in zip(start_date_list, end_date_list):
           for x in range(len(query_list)):
             
@@ -383,7 +386,7 @@ class TweetsDownloader:
                   if len(start_date) > 19:
                       start_date = start_date[:19]
                     
-                  if datetime.strptime(new_start_date, date_format) > datetime.strptime(start_date, date_format):
+                  if datetime.strptime(new_start_date, self.tweet_date_format) > datetime.strptime(start_date, self.tweet_date_format):
                       start_date = new_start_date
               
               self.get_historical_tweets_from_hashtags(query_list[x], bearer_token, start_date, end_date, 
