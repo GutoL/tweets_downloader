@@ -236,6 +236,9 @@ class TweetInformationHandler():
 
             row['created_at'] = self.convert_date(tweet_response['created_at'])
 
+            if not isinstance(row['created_at'], datetime.datetime):
+              continue
+
             row['lang'] = tweet_response['lang']
             row['text'] = tweet_response['text']
             
@@ -373,8 +376,9 @@ class TweetInformationHandler():
                         else:
                             # print(u_key, user[u_key])
                             user_temp[u_key] = user[u_key]
-                    
-                users.append(deepcopy(user_temp))
+
+                if isinstance(user_temp['created_at'], datetime.datetime):    
+                  users.append(deepcopy(user_temp))
         
         return users
       

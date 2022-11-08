@@ -46,11 +46,23 @@ if len(config['start_list']) != len(config['end_list']):
     print('start_list and end_list must have the same size!')
     exit(1)
 
-tweets_downloader.download_tweets(hashtags_file=config['query_file'], 
+# tweets_downloader.download_tweets(hashtags_file=config['query_file'], 
+#                                   start_date_list=config['start_list'], 
+#                                   end_date_list=config['end_list'], 
+#                                   language=config['language'],
+#                                   file_extension=config['file_extension'],
+#                                   separator=config['separator'],
+#                                   number_of_tweets_per_call=config['number_of_tweets_per_call'],
+#                                   time_interval_break=config["time_interval_break"],
+#                                   limit_tweets_per_period=False,
+#                                   save_on_disk=True)
+
+tweets_downloader.download_tweets_tweepy(hashtags_file=config['query_file'], 
                                   start_date_list=config['start_list'], 
                                   end_date_list=config['end_list'], 
                                   language=config['language'],
                                   file_extension=config['file_extension'],
+                                  separator=config['separator'],
                                   number_of_tweets_per_call=config['number_of_tweets_per_call'],
                                   time_interval_break=config["time_interval_break"],
                                   limit_tweets_per_period=False,

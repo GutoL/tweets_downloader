@@ -10,6 +10,7 @@
     "time_interval_break":{"days":1},
     "language": "",
     "file_extension": "csv",
+    "separator": "|",
     "number_of_tweets_per_call": 100,
     "academic_privilege": true
 }
