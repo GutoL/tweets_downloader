@@ -14,8 +14,10 @@ All configuration is done in the file **config.json**. You need to specify some 
 - **start_list**: List of start dates to retrieve the tweets. You can specify more than one interval. Example: ["2022-10-30 22:00:00"].
 - **end_list**: List of start dates to retrieve the tweets. You can specify more than one interval. This list must have the same size of start_list. Example["2022-10-30 23:59:00"].
 - **results_path**: The path where the tweets will be stored. Example: "tweets/".
+- **time_interval_break**: It is a variable that you can use to break the downloads of tweets. For instance, if you will download tweets by a period of one month, you can break this collection in days. Then the script will collect the tweets for each day, and save then in different files. You can break your tweets collection in minutes, hours, and days. Example: {"days":1}.
 - **language**: Language filter to download tweets. If you don't want to specify a language, set None or ''. Example: "pt".
 - **file_extension**: Extension of the output file where the tweets will be saved. Can be "csv" or "xlsx". Example: "csv".
+- **separator**: Delimiter used to create the CSV files. Example: ','.
 - **number_of_tweets_per_call**: Number of tweets that will be downloaded per API call. The maximum is 100. However, the script will download all tweets by the [paginator mechanism](https://developer.twitter.com/en/docs/twitter-api/pagination). Example: 100.
 - **academic_privilege**: This field defines if you have academic privilege (true or false). Example: true.
 

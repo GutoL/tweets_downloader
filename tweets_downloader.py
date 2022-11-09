@@ -453,7 +453,7 @@ class TweetsDownloader:
                         print('reading the file:', tweets_file_name)
 
                         if 'csv' in tweets_file_name:
-                            df_date_temp = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8') #, engine='python')
+                            df_date_temp = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='python')
                         else:
                             df_date_temp = pd.read_excel(tweets_file_name, sheet_name='tweets')
 
@@ -492,7 +492,7 @@ class TweetsDownloader:
 
         if os.path.isfile(tweets_file_name):
             if 'csv' in tweets_file_name:
-                df = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8') #, engine='python')
+                df = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='python')
             else:
                 df = pd.read_excel(tweets_file_name, sheet_name='tweets')
         
