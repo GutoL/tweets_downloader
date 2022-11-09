@@ -3,6 +3,7 @@ from google_cloud_storage_manager import GoogleCloudStorageManager
 from tweet_information_handler import TweetInformationHandler
 
 import yaml
+import glob
 import requests
 import dateutil
 import pandas as pd
@@ -447,7 +448,12 @@ class TweetsDownloader:
                         with open(newpath+'hashtags.txt', 'w', encoding="utf8") as fp:
                             fp.write(''.join(query_list[x]))
 
-                    tweets_file_name = self.results_path+str(x)+'/tweets_'+temp_start_date.replace(':','_')+'_'+temp_end_date.replace(':','_')+'_group_'+str(x)+file_extension
+                    
+                    tweets_file_name, temp_start_date, temp_end_date = self.get_last_period_tweet_file(newpath, file_extension, temp_start_date, temp_end_date)
+                    
+                    if tweets_file_name == False:
+                        tweets_file_name = self.results_path+str(x)+'/tweets_'+temp_start_date.replace(':','_')+'_'+temp_end_date.replace(':','_')+'_group_'+str(x)+file_extension
+
                     
                     if os.path.isfile(tweets_file_name):
                         print('reading the file:', tweets_file_name)
@@ -486,7 +492,40 @@ class TweetsDownloader:
                     if len(tweets_pool) > 0:
                         self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
 
-                    
+    def conver_string_to_twitter_date(self, string):
+        return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+    def find_between(self, s, first, last ):
+        try:
+            start = s.index( first ) + len( first )
+            end = s.index( last, start )
+            return s[start:end]
+        except ValueError:
+            return ""
+
+    def get_last_period_tweet_file(self, path, extension, start_date, latest_date):
+
+        files = [self.find_between(name, 'tweets_', '_group') for name in glob.glob(path+'*') if extension in name]
+        
+        if len(files) == 0:
+            return False, start_date, latest_date
+
+        latest_file = ''
+        new_start_date = ''
+        new_end_date = ''
+
+        for filename in files:
+            date_1 = filename[0:filename.find('Z')+1].replace('_',':')
+            date_2 = filename[filename.find('Z')+2: len(filename)].replace('_',':')
+
+            if date_2 > latest_date:
+                new_start_date = date_1
+                new_end_date = date_2
+                
+                latest_date = date_2
+                latest_file = filename
+
+        return path+latest_file, new_start_date, new_end_date
                 
     def save_tweets_on_disk(self, tweets_file_name, tweets_pool, separator, columns):
 
@@ -506,6 +545,8 @@ class TweetsDownloader:
         # print('Saving:')
         # print(tweets_df)        
         
+        # tweets_df.drop_duplicates(inplace=True)
+
         if '.csv' in tweets_file_name:
             tweets_df.to_csv(tweets_file_name, index=False, sep=separator, columns=columns)                
 
