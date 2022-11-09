@@ -17,31 +17,6 @@ tweets_downloader = TweetsDownloader(keys_filename=config['keys_filename'], key_
                                      results_path=config['results_path'],
                                      academic_privilege=config['academic_privilege'])
 
-# start_list =   ['2022-10-30 22:00:00'] # ['2022-10-18T22:00:00.000Z',]
-# end_list =     ['2022-10-30 23:59:00'] # ['2022-10-18T23:59:00.000Z',]
-
-
-
-# json_response = json.load(open(path+'json_response_example.json'))
-
-# # tweets_downloader.get_users_information_tweet(json_response)
-# # tweets_downloader.get_media_information_tweet(json_response)
-# # tweets_downloader.get_places_information_tweet(json_response)
-
-# tweet_information_handler = TweetInformationHandler(json_response)
-
-# tweets = tweet_information_handler.get_full_information_from_tweets()
-
-# print(json.dumps(tweets, indent=4))
-
-# columns_names  = tweets[0].keys()
-# df = pd.DataFrame(columns=columns_names)
-
-# for tweet in tweets:
-#   df = df.append(tweet, ignore_index=True)
-
-# df.to_csv('tweets.csv', index=False)
-
 if len(config['start_list']) != len(config['end_list']):
     print('start_list and end_list must have the same size!')
     exit(1)
@@ -63,7 +38,8 @@ tweets_downloader.download_tweets_tweepy(hashtags_file=config['query_file'],
                                   language=config['language'],
                                   file_extension=config['file_extension'],
                                   separator=config['separator'],
-                                  number_of_tweets_per_call=config['number_of_tweets_per_call'],
                                   time_interval_break=config["time_interval_break"],
-                                  limit_tweets_per_period=False,
+                                  limit_tweets=100,
+                                  chunck_size_to_save=1000,
+                                  total_of_tweets=None,
                                   save_on_disk=True)

@@ -351,9 +351,37 @@ class TweetsDownloader:
         return [query+' '+language]
 
     def download_tweets_tweepy(self, hashtags_file, start_date_list, end_date_list, time_interval_break, 
-                        limit_tweets_per_period=100, language=None, file_extension='csv', separator=',', 
-                        number_of_tweets_per_call=100, save_on_disk=True):
+                        limit_tweets=100, chunck_size_to_save=1000, total_of_tweets=None, language=None, file_extension='csv', separator=',', 
+                        save_on_disk=True):
         
+        if not total_of_tweets:
+            total_of_tweets = float('inf')
+
+        expansions=['author_id','referenced_tweets.id','referenced_tweets.id.author_id','entities.mentions.username',
+                    'attachments.poll_ids','attachments.media_keys','in_reply_to_user_id','geo.place_id,edit_history_tweet_ids']
+                    
+        media_fields=['media_key', 'type', 'url', 'public_metrics', 'duration_ms', 'height', 'alt_text', 'width', 'variants', 'preview_image_url']
+
+        tweet_fields=['attachments','author_id','context_annotations','conversation_id','created_at','edit_controls',
+                        'edit_history_tweet_ids','entities','geo','id','in_reply_to_user_id','lang',
+                        'possibly_sensitive','public_metrics','referenced_tweets',
+                        'reply_settings','source','text','withheld']
+
+        poll_fields=['duration_minutes','end_datetime','id','options','voting_status']
+
+        place_fields=['contained_within','country','country_code','full_name','geo','id','name','place_type']
+
+        user_fields=['created_at','description','entities','id','location','name','pinned_tweet_id','profile_image_url',
+                    'protected','public_metrics','url', 'username','verified','withheld']
+
+        columns = ['conversation_id', 'possibly_sensitive', 'id', 'author_id',	'context_annotations',	'source',	'created_at',	'reply_settings',	
+                    'text', 'edit_history_tweet_ids',	'referenced_tweets',	'lang',	'in_reply_to_user_id',	'edit_controls.edits_remaining',
+                   'edit_controls.is_edit_eligible',	'edit_controls.editable_until',	'entities.mentions',	'public_metrics.retweet_count',	
+                   'public_metrics.reply_count',	'public_metrics.like_count',	'public_metrics.quote_count',	'entities.annotations',	'entities.urls',	
+                   'attachments.media_keys',	'entities.hashtags',	'geo.place_id',	'geo.coordinates.type',	'geo.coordinates.coordinates',	
+                   'entities.cashtags']
+
+
         client = tweepy.Client(
             consumer_key=self.consumer_key,
             consumer_secret=self.consumer_secret,
@@ -373,51 +401,118 @@ class TweetsDownloader:
         query_list = self.break_query(processed_query, language=language)
 
         query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
+        
+        if 'csv' in file_extension:
+            file_extension = '.csv'
+        else:
+            file_extension = '.xlsx'
 
         for start_date, end_date in zip(start_date_list, end_date_list):
-          for x in range(len(query_list)):
-            
-            # tweets_list = tweepy.Cursor(api.search_tweets, q=query, tweet_mode='extended', lang=language).items()
 
             start_date = datetime.strptime(start_date, self.tweet_date_format).isoformat('T')+'Z'
             end_date = datetime.strptime(end_date, self.tweet_date_format).isoformat('T')+'Z'
 
-            all_tweets = []
-            
-            # https://dev.to/twitterdev/a-comprehensive-guide-for-using-the-twitter-api-v2-using-tweepy-in-python-15d9
-            for tweet in tweepy.Paginator(client.search_all_tweets, query=query_list[x], 
-                                                    start_time=start_date, end_time=end_date, max_results=limit_tweets_per_period, # 500
+            start_date = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%SZ")
+            end_date = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%SZ")
 
-                                                    expansions=['author_id','referenced_tweets.id','referenced_tweets.id.author_id','entities.mentions.username',
-                                                                'attachments.poll_ids','attachments.media_keys','in_reply_to_user_id','geo.place_id,edit_history_tweet_ids'],
-                                                                
-                                                    media_fields=['media_key', 'type', 'url', 'public_metrics', 'duration_ms', 'height', 'alt_text', 'width', 'variants', 'preview_image_url'],
+            if time_interval_break:
+                if list(time_interval_break.keys())[0] == 'days':
+                    variation = timedelta(days=time_interval_break['days'])
 
-                                                    tweet_fields=['attachments','author_id','context_annotations','conversation_id','created_at','edit_controls',
-                                                                    'edit_history_tweet_ids','entities','geo','id','in_reply_to_user_id','lang',
-                                                                    'possibly_sensitive','public_metrics','referenced_tweets',
-                                                                    'reply_settings','source','text','withheld'],
+                elif list(time_interval_break.keys())[0] == 'hours':
+                    variation = timedelta(hours=time_interval_break['hours'])
 
-                                                    poll_fields=['duration_minutes','end_datetime','id','options','voting_status'],
+                elif list(time_interval_break.keys())[0] == 'minutes':
+                    variation = timedelta(minutes=time_interval_break['minutes'])
 
-                                                    place_fields=['contained_within','country','country_code','full_name','geo','id','name','place_type'],
+                end_date += variation
 
-                                                    user_fields=['created_at','description','entities','id','location','name','pinned_tweet_id','profile_image_url',
-                                                                'protected','public_metrics','url', 'username','verified','withheld']
-                                                                ).flatten():
-                all_tweets.append(tweet.data)
+                dts = [dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ") for dt in self.datetime_range(start_date, end_date, variation)]
 
-                print(tweet.data)
+            else:
+                dts = [start_date, end_date]
+
+            for j in range(len(dts)-1):
+                temp_start_date = dts[j]
+                temp_end_date = dts[j+1]
+
+                for x in range(len(query_list)):
+
+                    # tweets_list = tweepy.Cursor(api.search_tweets, q=query, tweet_mode='extended', lang=language).items()
+                    
+                    newpath = self.results_path+str(x)+'/'
+
+                    if not os.path.exists(newpath) and save_on_disk:
+                        os.makedirs(newpath)
+                        with open(newpath+'hashtags.txt', 'w', encoding="utf8") as fp:
+                            fp.write(''.join(query_list[x]))
+
+                    tweets_file_name = self.results_path+str(x)+'/tweets_'+temp_start_date.replace(':','_')+'_'+temp_end_date.replace(':','_')+'_group_'+str(x)+file_extension
+                    
+                    if os.path.isfile(tweets_file_name):
+                        print('reading the file:', tweets_file_name)
+
+                        if 'csv' in tweets_file_name:
+                            df_date_temp = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8') #, engine='python')
+                        else:
+                            df_date_temp = pd.read_excel(tweets_file_name, sheet_name='tweets')
+
+                        new_end_date = datetime.strptime(df_date_temp['created_at'].iloc[-1], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+                        if new_end_date < datetime.strptime(temp_end_date, "%Y-%m-%dT%H:%M:%S.%fZ"):
+                            temp_end_date = new_end_date # datetime.strptime(new_end_date, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+                    print('Downloading tweets between:', temp_start_date, 'and', temp_end_date)            
+
+                    # print(temp_start_date)
+                    # print(temp_end_date)
+                    # print('--------------')
+
+                    tweets_pool = []
+
+                    # https://dev.to/twitterdev/a-comprehensive-guide-for-using-the-twitter-api-v2-using-tweepy-in-python-15d9
+                    for i, tweet in enumerate(tweepy.Paginator(client.search_all_tweets, query=query_list[x], 
+                                                            start_time=temp_start_date, end_time=temp_end_date, max_results=limit_tweets, # 500
+                                                            expansions=expansions, media_fields=media_fields, tweet_fields=tweet_fields,
+                                                            poll_fields=poll_fields, place_fields=place_fields, user_fields=user_fields).flatten(total_of_tweets)):
+                        tweets_pool.append(tweet.data)
+
+                        if i % chunck_size_to_save == 0 and i > 0 and save_on_disk:
+                            
+                            self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
+                            
+                            tweets_pool = []
+                    
+                    if len(tweets_pool) > 0:
+                        self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
+
+                    
                 
-            
-            tweets_df = pd.json_normalize(all_tweets)
+    def save_tweets_on_disk(self, tweets_file_name, tweets_pool, separator, columns):
 
-            tweets_df.to_csv('teste.csv', index=False)
-            
-                
-            
+        if os.path.isfile(tweets_file_name):
+            if 'csv' in tweets_file_name:
+                df = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8') #, engine='python')
+            else:
+                df = pd.read_excel(tweets_file_name, sheet_name='tweets')
+        
+        else:
+            df = pd.DataFrame(columns=columns)
 
-            
+        print('Saving more', len(tweets_pool), 'tweets. Total number of tweets collected:', df.shape[0])
+        
+        tweets_df = pd.concat([df, pd.json_normalize(tweets_pool)], ignore_index=True)
+
+        # print('Saving:')
+        # print(tweets_df)        
+        
+        if '.csv' in tweets_file_name:
+            tweets_df.to_csv(tweets_file_name, index=False, sep=separator, columns=columns)                
+
+        elif '.xlsx' in tweets_file_name:
+            with pd.ExcelWriter(tweets_file_name) as writer:  
+                tweets_df.to_excel(writer, sheet_name='tweets', columns=columns)
+
 
     def download_tweets(self, hashtags_file, start_date_list, end_date_list, limit_tweets_per_period, 
                         time_interval_break, language=None, file_extension='csv', separator=',', 
@@ -476,10 +571,10 @@ class TweetsDownloader:
                   if datetime.strptime(new_start_date, self.tweet_date_format) > datetime.strptime(start_date, self.tweet_date_format):
                       start_date = new_start_date
               
-              self.get_historical_tweets_from_hashtags(query_list[x], bearer_token, start_date, end_date, 
-                                                       number_of_tweets_per_call, max_count, 
-                                                       limit_tweets_per_period, tweets_file_name, separator, save_on_disk,
-                                                       time_interval_break=time_interval_break)
+            #   self.get_historical_tweets_from_hashtags(query_list[x], bearer_token, start_date, end_date, 
+            #                                            number_of_tweets_per_call, max_count, 
+            #                                            limit_tweets_per_period, tweets_file_name, separator, save_on_disk,
+            #                                            time_interval_break=time_interval_break)
               
     def upload_to_cloud_storage(self, bucket_name):
         # bucket_name = 'guto_test_bucket'
