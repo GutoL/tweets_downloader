@@ -433,14 +433,12 @@ class TweetsDownloader:
             else:
                 dts = [start_date, end_date]
 
-            for j in range(len(dts)-1):
-                temp_start_date = dts[j]
-                temp_end_date = dts[j+1]
+            for j in range(len(dts)-1, 0 , -1):
+                temp_start_date = dts[j-1]
+                temp_end_date = dts[j]
 
                 for x in range(len(query_list)):
 
-                    # tweets_list = tweepy.Cursor(api.search_tweets, q=query, tweet_mode='extended', lang=language).items()
-                    
                     newpath = self.results_path+str(x)+'/'
 
                     if not os.path.exists(newpath) and save_on_disk:
@@ -449,14 +447,14 @@ class TweetsDownloader:
                             fp.write(''.join(query_list[x]))
 
                     
-                    tweets_file_name, temp_start_date, temp_end_date = self.get_last_period_tweet_file(newpath, file_extension, temp_start_date, temp_end_date)
+                    tweets_file_name, temp_start_date, temp_end_date = self.get_last_period_tweet_file(newpath, file_extension, x, temp_start_date, temp_end_date)
                     
                     if tweets_file_name == False:
                         tweets_file_name = self.results_path+str(x)+'/tweets_'+temp_start_date.replace(':','_')+'_'+temp_end_date.replace(':','_')+'_group_'+str(x)+file_extension
 
                     
                     if os.path.isfile(tweets_file_name):
-                        print('reading the file:', tweets_file_name)
+                        # print('reading the file:', tweets_file_name)
 
                         if 'csv' in tweets_file_name:
                             df_date_temp = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='python')
@@ -468,13 +466,13 @@ class TweetsDownloader:
                         if new_end_date < datetime.strptime(temp_end_date, "%Y-%m-%dT%H:%M:%S.%fZ"):
                             temp_end_date = new_end_date # datetime.strptime(new_end_date, "%Y-%m-%dT%H:%M:%S.%fZ")
 
-                    print('Downloading tweets between:', temp_start_date, 'and', temp_end_date)            
+                    print('Downloading tweets between:', temp_start_date, 'and', temp_end_date)
 
-                    # print(temp_start_date)
-                    # print(temp_end_date)
-                    # print('--------------')
+                    # # print(temp_start_date)
+                    # # print(temp_end_date)
+                    # # print('--------------')
 
-                    tweets_pool = []
+                    tweets_pool = []                    
 
                     # https://dev.to/twitterdev/a-comprehensive-guide-for-using-the-twitter-api-v2-using-tweepy-in-python-15d9
                     for i, tweet in enumerate(tweepy.Paginator(client.search_all_tweets, query=query_list[x], 
@@ -483,11 +481,11 @@ class TweetsDownloader:
                                                             poll_fields=poll_fields, place_fields=place_fields, user_fields=user_fields).flatten(total_of_tweets)):
                         tweets_pool.append(tweet.data)
 
-                        if i % chunck_size_to_save == 0 and i > 0 and save_on_disk:
-                            
-                            self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
-                            
-                            tweets_pool = []
+                        if i % chunck_size_to_save == 0 and i > 0:
+                            if save_on_disk:
+                                self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
+                                tweets_pool = []
+                            time.sleep(3)
                     
                     if len(tweets_pool) > 0:
                         self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
@@ -503,39 +501,45 @@ class TweetsDownloader:
         except ValueError:
             return ""
 
-    def get_last_period_tweet_file(self, path, extension, start_date, latest_date):
+    def get_last_period_tweet_file(self, path, file_extension, group, start_date, latest_date):
 
-        files = [self.find_between(name, 'tweets_', '_group') for name in glob.glob(path+'*') if extension in name]
+        files = [self.find_between(name, 'tweets_', '_group') for name in glob.glob(path+'*') if file_extension in name]
         
         if len(files) == 0:
             return False, start_date, latest_date
 
         latest_file = ''
-        new_start_date = ''
+        # new_start_date = ''
         new_end_date = ''
 
+        files.sort(reverse=True)
+
         for filename in files:
-            date_1 = filename[0:filename.find('Z')+1].replace('_',':')
+            # date_1 = filename[0:filename.find('Z')+1].replace('_',':')
             date_2 = filename[filename.find('Z')+2: len(filename)].replace('_',':')
 
-            if date_2 > latest_date:
-                new_start_date = date_1
+            if date_2 <= latest_date:
+                # new_start_date = date_1
                 new_end_date = date_2
                 
                 latest_date = date_2
                 latest_file = filename
 
-        return path+latest_file, new_start_date, new_end_date
+        
+        return path+'tweets_'+latest_file+'_group_'+str(group)+file_extension, start_date, new_end_date
                 
     def save_tweets_on_disk(self, tweets_file_name, tweets_pool, separator, columns):
 
         if os.path.isfile(tweets_file_name):
+            # print('reading::', tweets_file_name)
+
             if 'csv' in tweets_file_name:
                 df = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='python')
             else:
                 df = pd.read_excel(tweets_file_name, sheet_name='tweets')
         
         else:
+            # print('creating a new data frame', tweets_file_name)
             df = pd.DataFrame(columns=columns)
 
         print('Saving more', len(tweets_pool), 'tweets. Total number of tweets collected:', df.shape[0])
