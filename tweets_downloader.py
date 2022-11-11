@@ -426,7 +426,7 @@ class TweetsDownloader:
                 elif list(time_interval_break.keys())[0] == 'minutes':
                     variation = timedelta(minutes=time_interval_break['minutes'])
 
-                end_date += variation
+                # end_date += variation
 
                 dts = [dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ") for dt in self.datetime_range(start_date, end_date, variation)]
 
@@ -449,7 +449,7 @@ class TweetsDownloader:
                     
                     tweets_file_name, temp_start_date, temp_end_date = self.get_last_period_tweet_file(newpath, file_extension, x, temp_start_date, temp_end_date)
                     
-                    if tweets_file_name == False:
+                    if tweets_file_name == False: # if you don't get the filename from the folder, create the name of the new file
                         tweets_file_name = self.results_path+str(x)+'/tweets_'+temp_start_date.replace(':','_')+'_'+temp_end_date.replace(':','_')+'_group_'+str(x)+file_extension
 
                     
@@ -501,48 +501,46 @@ class TweetsDownloader:
         except ValueError:
             return ""
 
-    def get_last_period_tweet_file(self, path, file_extension, group, start_date, latest_date):
+    def get_last_period_tweet_file(self, path, file_extension, group, start_date, end_date):
 
         files = [self.find_between(name, 'tweets_', '_group') for name in glob.glob(path+'*') if file_extension in name]
         
-        if len(files) == 0:
-            return False, start_date, latest_date
+        if len(files) == 0: # if there are no CSV files, return the same start and end date. The file name will be created in the another function
+            return False, start_date, end_date
 
-        latest_file = ''
         # new_start_date = ''
-        new_end_date = ''
+        new_end_date = end_date
+        latest_file = ''
 
         files.sort(reverse=True)
 
         for filename in files:
-            # date_1 = filename[0:filename.find('Z')+1].replace('_',':')
-            date_2 = filename[filename.find('Z')+2: len(filename)].replace('_',':')
+            # start_date_from_file = filename[0:filename.find('Z')+1].replace('_',':')
+            end_date_from_file = filename[filename.find('Z')+2: len(filename)].replace('_',':')
 
-            if date_2 <= latest_date:
-                # new_start_date = date_1
-                new_end_date = date_2
-                
-                latest_date = date_2
+            if end_date_from_file <= new_end_date:
+                new_end_date = end_date_from_file
                 latest_file = filename
+                
+        # if the current end date is lower than all end dates from files, then consider the current end and start date, 
+        # and the filename will be created in the another function
+        if len(latest_file) == 0:
+            return False, start_date, end_date
 
-        
         return path+'tweets_'+latest_file+'_group_'+str(group)+file_extension, start_date, new_end_date
                 
     def save_tweets_on_disk(self, tweets_file_name, tweets_pool, separator, columns):
 
         if os.path.isfile(tweets_file_name):
-            # print('reading::', tweets_file_name)
-
             if 'csv' in tweets_file_name:
                 df = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='python')
             else:
                 df = pd.read_excel(tweets_file_name, sheet_name='tweets')
         
         else:
-            # print('creating a new data frame', tweets_file_name)
             df = pd.DataFrame(columns=columns)
 
-        print('Saving more', len(tweets_pool), 'tweets. Total number of tweets collected:', df.shape[0])
+        print('Saving more', len(tweets_pool), 'tweets at this time. Total number of tweets collected:', df.shape[0])
         
         tweets_df = pd.concat([df, pd.json_normalize(tweets_pool)], ignore_index=True)
 
