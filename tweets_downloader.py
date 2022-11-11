@@ -449,6 +449,9 @@ class TweetsDownloader:
                     
                     tweets_file_name, temp_start_date, temp_end_date = self.get_last_period_tweet_file(newpath, file_extension, x, temp_start_date, temp_end_date)
                     
+
+                    # print(tweets_file_name, 'temp_start_date',temp_start_date, 'temp_end_date',temp_end_date)
+
                     if tweets_file_name == False: # if you don't get the filename from the folder, create the name of the new file
                         tweets_file_name = self.results_path+str(x)+'/tweets_'+temp_start_date.replace(':','_')+'_'+temp_end_date.replace(':','_')+'_group_'+str(x)+file_extension
 
@@ -508,18 +511,22 @@ class TweetsDownloader:
         if len(files) == 0: # if there are no CSV files, return the same start and end date. The file name will be created in the another function
             return False, start_date, end_date
 
-        # new_start_date = ''
+        new_start_date = start_date
         new_end_date = end_date
         latest_file = ''
 
         files.sort(reverse=True)
 
         for filename in files:
-            # start_date_from_file = filename[0:filename.find('Z')+1].replace('_',':')
+            start_date_from_file = filename[0:filename.find('Z')+1].replace('_',':')
             end_date_from_file = filename[filename.find('Z')+2: len(filename)].replace('_',':')
-
-            if end_date_from_file <= new_end_date:
+            
+            # print(end_date_from_file <= new_end_date, 'end_date_from_file:', end_date_from_file, 'new_end_date', new_end_date)
+            # print(end_date_from_file <= new_end_date, 'start_date_from_file:', start_date_from_file, 'new_start_date', new_start_date)
+            if end_date_from_file <= new_end_date and start_date_from_file <= new_start_date:
                 new_end_date = end_date_from_file
+                new_start_date = start_date_from_file
+
                 latest_file = filename
                 
         # if the current end date is lower than all end dates from files, then consider the current end and start date, 
@@ -527,7 +534,7 @@ class TweetsDownloader:
         if len(latest_file) == 0:
             return False, start_date, end_date
 
-        return path+'tweets_'+latest_file+'_group_'+str(group)+file_extension, start_date, new_end_date
+        return path+'tweets_'+latest_file+'_group_'+str(group)+file_extension, new_start_date, new_end_date
                 
     def save_tweets_on_disk(self, tweets_file_name, tweets_pool, separator, columns):
 
