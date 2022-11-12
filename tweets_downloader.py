@@ -416,6 +416,7 @@ class TweetsDownloader:
             start_date = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%SZ")
             end_date = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%SZ")
 
+            
             if time_interval_break:
                 if list(time_interval_break.keys())[0] == 'days':
                     variation = timedelta(days=time_interval_break['days'])
@@ -437,6 +438,7 @@ class TweetsDownloader:
                 temp_start_date = dts[j-1]
                 temp_end_date = dts[j]
 
+                
                 for x in range(len(query_list)):
 
                     newpath = self.results_path+str(x)+'/'
@@ -449,7 +451,6 @@ class TweetsDownloader:
                     
                     tweets_file_name, temp_start_date, temp_end_date = self.get_last_period_tweet_file(newpath, file_extension, x, temp_start_date, temp_end_date)
                     
-
                     # print(tweets_file_name, 'temp_start_date',temp_start_date, 'temp_end_date',temp_end_date)
 
                     if tweets_file_name == False: # if you don't get the filename from the folder, create the name of the new file
@@ -469,29 +470,44 @@ class TweetsDownloader:
                         if new_end_date < datetime.strptime(temp_end_date, "%Y-%m-%dT%H:%M:%S.%fZ"):
                             temp_end_date = new_end_date # datetime.strptime(new_end_date, "%Y-%m-%dT%H:%M:%S.%fZ")
 
+                    # All tweets for this time interval were downloaded
+                    if datetime.strptime(temp_start_date, "%Y-%m-%dT%H:%M:%S.%fZ") == temp_end_date:
+                        continue
+                    
                     print('Downloading tweets between:', temp_start_date, 'and', temp_end_date)
 
                     # # print(temp_start_date)
                     # # print(temp_end_date)
                     # # print('--------------')
-
-                    tweets_pool = []                    
-
-                    # https://dev.to/twitterdev/a-comprehensive-guide-for-using-the-twitter-api-v2-using-tweepy-in-python-15d9
-                    for i, tweet in enumerate(tweepy.Paginator(client.search_all_tweets, query=query_list[x], 
-                                                            start_time=temp_start_date, end_time=temp_end_date, max_results=limit_tweets, # 500
-                                                            expansions=expansions, media_fields=media_fields, tweet_fields=tweet_fields,
-                                                            poll_fields=poll_fields, place_fields=place_fields, user_fields=user_fields).flatten(total_of_tweets)):
-                        tweets_pool.append(tweet.data)
-
-                        if i % chunck_size_to_save == 0 and i > 0:
-                            if save_on_disk:
-                                self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
-                                tweets_pool = []
-                            time.sleep(3)
                     
-                    if len(tweets_pool) > 0:
-                        self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
+                    download_tweets = True
+                    
+                    while download_tweets:
+                        try:
+                            tweets_pool = []
+
+                            # https://dev.to/twitterdev/a-comprehensive-guide-for-using-the-twitter-api-v2-using-tweepy-in-python-15d9
+                            for i, tweet in enumerate(tweepy.Paginator(client.search_all_tweets, query=query_list[x], 
+                                                                    start_time=temp_start_date, end_time=temp_end_date, max_results=limit_tweets, # 500
+                                                                    expansions=expansions, media_fields=media_fields, tweet_fields=tweet_fields,
+                                                                    poll_fields=poll_fields, place_fields=place_fields, user_fields=user_fields).flatten(total_of_tweets)):
+                                tweets_pool.append(tweet.data)
+
+                                if i % chunck_size_to_save == 0 and i > 0:
+                                    if save_on_disk:
+                                        self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
+                                        tweets_pool = []
+                                    time.sleep(3)
+                            
+                            if len(tweets_pool) > 0:
+                                self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
+                            
+                            download_tweets = False
+
+                        except Exception as e:
+                            print(e)
+
+                            time.sleep(5)
 
     def conver_string_to_twitter_date(self, string):
         return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ")
