@@ -320,19 +320,41 @@ class TweetsDownloader:
     # Your queries will be limited depending on which access level you are using. 
     # If you have Essential or Elevated access, your query can be 512 characters long.
     # If you have Academic Research access, your query can be 1024 characters long. 
-    def break_query(self, query, language=None):
-    
+    def break_query(self, query, language=None, usernames_file=None):
+        
+      # Dealing with the language
       if language is None or len(language) == 0:
         language = ''
       else:
         language = 'lang:'+language
+      
+      # Dealing with the usernames
+      if usernames_file is None or len(usernames_file) == 0:
+        usernames = ''
+      else:
+        usernames = '('
 
-      if len(query+' lang:'+language) > self.maximum_query_size:
+        fp = open(usernames_file, 'r')
+        lines = fp.readlines()
+        fp.close()
+
+        for i, user in enumerate(lines):
+            user = user.strip()
+            user = user.replace('@','')
+            
+            usernames += 'from:'+user
+            
+            if i == len(lines)-1:
+                usernames += ') '
+            else:
+                usernames += ' OR '
+
+      if len(self.create_temp_query(query, language, usernames)) > self.maximum_query_size:
 
         hashtags = query.split('OR')
         hashtags_chunks = []
 
-        temp_query = language+' '
+        temp_query = self.create_temp_query('', language, usernames)
 
         for i, hashtag in enumerate(hashtags):
           if len(temp_query+' OR '+hashtag) <= self.maximum_query_size:
@@ -344,14 +366,31 @@ class TweetsDownloader:
           else:
             hashtags_chunks.append(temp_query)
 
-            temp_query = language+' '+hashtag
+            temp_query = self.create_temp_query(hashtag, language, usernames)
 
         return hashtags_chunks
       
       else:
-        return [query+' '+language]
+        return [self.create_temp_query(query, language, usernames)]
 
-    def download_tweets_tweepy(self, hashtags_file, start_date_list, end_date_list, time_interval_break, 
+    def create_temp_query(self, query, language, usernames):
+        temp_query = ''
+
+        if len(usernames) > 0:
+            temp_query += usernames
+
+        if len(language) > 0:
+            temp_query += ' '+language
+        
+        if len(temp_query) > 0:
+            temp_query += ' '
+        
+        temp_query += query
+
+        return temp_query
+
+
+    def download_tweets_tweepy(self, hashtags_file, usernames_file, start_date_list, end_date_list, time_interval_break, 
                         limit_tweets=100, chunck_size_to_save=1000, total_of_tweets=None, language=None, file_extension='csv', separator=',', 
                         save_on_disk=True):
         
@@ -399,9 +438,9 @@ class TweetsDownloader:
         for term in query[1:]:
             processed_query += ' OR ' + term
         
-        query_list = self.break_query(processed_query, language=language)
+        query_list = self.break_query(processed_query, language=language, usernames_file=usernames_file)
 
-        query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
+        # query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
         
         if 'csv' in file_extension:
             file_extension = '.csv'
@@ -485,7 +524,7 @@ class TweetsDownloader:
                     while download_tweets:
                         try:
                             tweets_pool = []
-
+                            print(query_list[x])
                             # https://dev.to/twitterdev/a-comprehensive-guide-for-using-the-twitter-api-v2-using-tweepy-in-python-15d9
                             for i, tweet in enumerate(tweepy.Paginator(client.search_all_tweets, query=query_list[x], 
                                                                     start_time=temp_start_date, end_time=temp_end_date, max_results=limit_tweets, # 500
@@ -507,7 +546,7 @@ class TweetsDownloader:
                         except Exception as e:
                             print(e)
 
-                            time.sleep(5)
+                            time.sleep(5) # '''
 
     def conver_string_to_twitter_date(self, string):
         return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ")

@@ -6,7 +6,7 @@ import json
 # path = str(pathlib.Path(__file__).parent.resolve())+'/' 
 
 if len(sys.argv) <= 1:
-    print('Please, run: pythton 3 main.py config_file_name.json')
+    print('Please, run: pythton main.py config_file_name.json')
     exit(1)
 
 
@@ -33,6 +33,7 @@ if len(config['start_list']) != len(config['end_list']):
 #                                   save_on_disk=True)
 
 tweets_downloader.download_tweets_tweepy(hashtags_file=config['query_file'], 
+                                  usernames_file=config['usernames_file'],
                                   start_date_list=config['start_list'], 
                                   end_date_list=config['end_list'], 
                                   language=config['language'],
@@ -41,5 +42,5 @@ tweets_downloader.download_tweets_tweepy(hashtags_file=config['query_file'],
                                   time_interval_break=config["time_interval_break"],
                                   limit_tweets=config['number_of_tweets_per_call'],
                                   chunck_size_to_save=1000,
-                                  total_of_tweets=None,
+                                  total_of_tweets= 15, #None,
                                   save_on_disk=True)
