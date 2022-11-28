@@ -204,7 +204,7 @@ class TweetsDownloader:
         # droping tweets that does not contain text or date
         tweets_df.dropna(subset=['created_at', 'text'], how='all', inplace=True)
         
-        print(tweets_df)
+        # print(tweets_df)
         tweets_df['created_at'] = tweets_df['created_at'].apply(self.data_convert)        
         
         tweets_df['created_at'] = tweets_df['created_at'].dt.strftime(self.tweet_date_format)
@@ -345,7 +345,7 @@ class TweetsDownloader:
             usernames += 'from:'+user
             
             if i == len(lines)-1:
-                usernames += ') '
+                usernames += ') '                
             else:
                 usernames += ' OR '
 
@@ -373,8 +373,11 @@ class TweetsDownloader:
       else:
         return [self.create_temp_query(query, language, usernames)]
 
-    def create_temp_query(self, query, language, usernames):
+    def create_temp_query(self, query, language, usernames, query_first=False):
         temp_query = ''
+        
+        if query_first:
+            temp_query = '('+query+ ') '
 
         if len(usernames) > 0:
             temp_query += usernames
@@ -385,7 +388,8 @@ class TweetsDownloader:
         if len(temp_query) > 0:
             temp_query += ' '
         
-        temp_query += query
+        if not query_first:
+            temp_query += '('+query+ ') '
 
         return temp_query
 
@@ -524,12 +528,13 @@ class TweetsDownloader:
                     while download_tweets:
                         try:
                             tweets_pool = []
-                            print(query_list[x])
+                            print('QUERY:', query_list[x])
                             # https://dev.to/twitterdev/a-comprehensive-guide-for-using-the-twitter-api-v2-using-tweepy-in-python-15d9
                             for i, tweet in enumerate(tweepy.Paginator(client.search_all_tweets, query=query_list[x], 
                                                                     start_time=temp_start_date, end_time=temp_end_date, max_results=limit_tweets, # 500
                                                                     expansions=expansions, media_fields=media_fields, tweet_fields=tweet_fields,
                                                                     poll_fields=poll_fields, place_fields=place_fields, user_fields=user_fields).flatten(total_of_tweets)):
+                                
                                 tweets_pool.append(tweet.data)
 
                                 if i % chunck_size_to_save == 0 and i > 0:
