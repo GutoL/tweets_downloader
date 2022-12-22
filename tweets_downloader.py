@@ -518,7 +518,7 @@ class TweetsDownloader:
     def download_replies_tweepy(self, conversation_id, start_date, end_date, tweets_file_name):
 
         # query = 'to:'+username+' in_reply_to_tweet_id:'+conversation_id
-        query =' conversation_id:'+conversation_id+' '
+        query = 'conversation_id:'+conversation_id
 
         self.download_tweets_using_paginator(query=query, start_time=start_date, end_time=end_date, max_results=100, total_of_tweets=float('inf'),
                                             tweets_file_name=tweets_file_name, separator='|', chunck_size_to_save=500, save_on_disk=True)
@@ -527,11 +527,12 @@ class TweetsDownloader:
         df = pd.read_csv(replies_filename, sep='|')
 
         tweets_with_replies = df[df['public_metrics.reply_count'] > 0]        
-        tweets_with_replies = self.dig_for_tweets_replies(tweets_with_replies, start_date, end_date)
+        tweets_with_replies = self.dig_for_tweets_replies(tweets_with_replies, start_date, end_date, 
+                                                          filename='results/replies', layer=0)
 
         return tweets_with_replies
         
-    def dig_for_tweets_replies(self, tweets_with_replies, start_date, end_date):
+    def dig_for_tweets_replies(self, tweets_with_replies, start_date, end_date, filename, layer):
         if tweets_with_replies.shape[0] == 0:
             return pd.DataFrame()        
 
@@ -546,25 +547,33 @@ class TweetsDownloader:
 
         tweets_pool = []
         for id in tweets_with_replies['id'].values:
-            tweets_temp = client.search_all_tweets(query='in_reply_to_tweet_id:'+str(id), start_time=start_date, end_time=end_date,
-                                                        max_results=10, # 500
-                                                        expansions=self.expansions, media_fields=self.media_fields, 
-                                                        tweet_fields=self.tweet_fields, poll_fields=self.poll_fields, 
-                                                        place_fields=self.place_fields, user_fields=self.user_fields)
+            # tweets_temp = client.search_all_tweets(query='in_reply_to_tweet_id:'+str(id), start_time=start_date, end_time=end_date,
+            #                                             max_results=10, # 500
+            #                                             expansions=self.expansions, media_fields=self.media_fields, 
+            #                                             tweet_fields=self.tweet_fields, poll_fields=self.poll_fields, 
+            #                                             place_fields=self.place_fields, user_fields=self.user_fields)
 
-            # tweets_temp = self.download_tweets_using_paginator(query='in_reply_to_tweet_id:'+str(id), 
-            #                                                    start_time=start_date, end_time=end_date, max_results=10, 
-            #                                                    total_of_tweets=10, tweets_file_name='', 
-            #                                                    separator='|', chunck_size_to_save=500, save_on_disk=False,
-            #                                                    limit_calls_api=1)
+            tweets_temp = self.download_tweets_using_paginator(query='in_reply_to_tweet_id:'+str(id), 
+                                                               start_time=start_date, end_time=end_date, max_results=10, 
+                                                               total_of_tweets=10, tweets_file_name='', 
+                                                               separator='|', chunck_size_to_save=500, save_on_disk=False,
+                                                               limit_calls_api=1)
 
             tweets_pool.append(tweets_temp)
+            time.sleep(2)
+
+            break
         
-        replies_df = pd.DataFrame(tweets_pool, sep='|')
+        replies_df = pd.DataFrame(columns=self.columns)
+        replies_df = pd.concat([replies_df, pd.json_normalize(tweets_pool)])
+
+        print(replies_df)
+
+        replies_df.to_csv(filename+str(layer)+'.csv', sep='|', columns=self.columns)
 
         replies_df = replies_df[replies_df['public_metrics.reply_count'] > 0]        
 
-        return pd.concat([tweets_with_replies, self.dig_for_tweets_replies(replies_df, start_date, end_date)])
+        return pd.concat([tweets_with_replies, self.dig_for_tweets_replies(replies_df, start_date, end_date, filename, layer+1)])
             
 
     def download_tweets_using_paginator(self, query, start_time, end_time, max_results, total_of_tweets, tweets_file_name, 
@@ -592,9 +601,13 @@ class TweetsDownloader:
                                                         start_time=start_time, end_time=end_time,
                                                         max_results=max_results, # 500
                                                         limit=limit_calls_api,
-                                                        expansions=self.expansions, media_fields=self.media_fields, 
-                                                        tweet_fields=self.tweet_fields, poll_fields=self.poll_fields, 
-                                                        place_fields=self.place_fields, user_fields=self.user_fields).flatten(total_of_tweets)):
+                                                        expansions=self.expansions, 
+                                                        media_fields=self.media_fields, 
+                                                        tweet_fields=self.tweet_fields, 
+                                                        poll_fields=self.poll_fields, 
+                                                        place_fields=self.place_fields, 
+                                                        user_fields=self.user_fields
+                                                        ).flatten(total_of_tweets)):
                     
                     # print(tweet.data)
                     tweets_pool.append(tweet.data)

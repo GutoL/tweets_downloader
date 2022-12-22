@@ -28,9 +28,9 @@ start_date = '2022-07-22T00:00:00.000Z'
 end_date = '2022-12-22T12:00:00.000Z'
 tweets_file_name = 'results/announcing_monkeypox_status.csv'
 
-tweets_downloader.download_replies_tweepy(conversation_id=conversation_id, tweets_file_name=tweets_file_name, start_date=start_date, end_date=end_date)
+# tweets_downloader.download_replies_tweepy(conversation_id=conversation_id, tweets_file_name=tweets_file_name, start_date=start_date, end_date=end_date)
 
-# tweets_with_replies = tweets_downloader.expand_replies(tweets_file_name, start_date, end_date)
+tweets_with_replies = tweets_downloader.expand_replies(tweets_file_name, start_date, end_date)
 
-# print(tweets_with_replies)
-# print(tweets_with_replies.shape)
+print(tweets_with_replies)
+print(tweets_with_replies.shape)
