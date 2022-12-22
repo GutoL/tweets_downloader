@@ -37,6 +37,31 @@ class TweetsDownloader:
         if path_to_google_cloud_private_key_file:
           self.gcs_manager = GoogleCloudStorageManager(path_to_google_cloud_private_key_file)
 
+        
+        self.expansions=['author_id','referenced_tweets.id','referenced_tweets.id.author_id','entities.mentions.username',
+                    'attachments.poll_ids','attachments.media_keys','in_reply_to_user_id','geo.place_id,edit_history_tweet_ids']
+                    
+        self.media_fields=['media_key', 'type', 'url', 'public_metrics', 'duration_ms', 'height', 'alt_text', 'width', 'variants', 'preview_image_url']
+
+        self.tweet_fields=['attachments','author_id','context_annotations','conversation_id','created_at','edit_controls',
+                        'edit_history_tweet_ids','entities','geo','id','in_reply_to_user_id','lang',
+                        'possibly_sensitive','public_metrics','referenced_tweets',
+                        'reply_settings','source','text','withheld']
+
+        self.poll_fields=['duration_minutes','end_datetime','id','options','voting_status']
+
+        self.place_fields=['contained_within','country','country_code','full_name','geo','id','name','place_type']
+
+        self.user_fields=['created_at','description','entities','id','location','name','pinned_tweet_id','profile_image_url',
+                    'protected','public_metrics','url', 'username','verified','withheld']
+
+        self.columns = ['conversation_id', 'possibly_sensitive', 'id', 'author_id',	'context_annotations',	'source',	'created_at',	'reply_settings',	
+                    'text', 'edit_history_tweet_ids',	'referenced_tweets',	'lang',	'in_reply_to_user_id',	'edit_controls.edits_remaining',
+                   'edit_controls.is_edit_eligible',	'edit_controls.editable_until',	'entities.mentions',	'public_metrics.retweet_count',	
+                   'public_metrics.reply_count',	'public_metrics.like_count',	'public_metrics.quote_count',	'entities.annotations',	'entities.urls',	
+                   'attachments.media_keys',	'entities.hashtags',	'geo.place_id',	'geo.coordinates.type',	'geo.coordinates.coordinates',	
+                   'entities.cashtags']
+
     def read_credentials(self, keys_filename, key_set):
         with open(keys_filename) as file:
           documents = yaml.full_load(file)
@@ -401,40 +426,6 @@ class TweetsDownloader:
         if not total_of_tweets:
             total_of_tweets = float('inf')
 
-        expansions=['author_id','referenced_tweets.id','referenced_tweets.id.author_id','entities.mentions.username',
-                    'attachments.poll_ids','attachments.media_keys','in_reply_to_user_id','geo.place_id,edit_history_tweet_ids']
-                    
-        media_fields=['media_key', 'type', 'url', 'public_metrics', 'duration_ms', 'height', 'alt_text', 'width', 'variants', 'preview_image_url']
-
-        tweet_fields=['attachments','author_id','context_annotations','conversation_id','created_at','edit_controls',
-                        'edit_history_tweet_ids','entities','geo','id','in_reply_to_user_id','lang',
-                        'possibly_sensitive','public_metrics','referenced_tweets',
-                        'reply_settings','source','text','withheld']
-
-        poll_fields=['duration_minutes','end_datetime','id','options','voting_status']
-
-        place_fields=['contained_within','country','country_code','full_name','geo','id','name','place_type']
-
-        user_fields=['created_at','description','entities','id','location','name','pinned_tweet_id','profile_image_url',
-                    'protected','public_metrics','url', 'username','verified','withheld']
-
-        columns = ['conversation_id', 'possibly_sensitive', 'id', 'author_id',	'context_annotations',	'source',	'created_at',	'reply_settings',	
-                    'text', 'edit_history_tweet_ids',	'referenced_tweets',	'lang',	'in_reply_to_user_id',	'edit_controls.edits_remaining',
-                   'edit_controls.is_edit_eligible',	'edit_controls.editable_until',	'entities.mentions',	'public_metrics.retweet_count',	
-                   'public_metrics.reply_count',	'public_metrics.like_count',	'public_metrics.quote_count',	'entities.annotations',	'entities.urls',	
-                   'attachments.media_keys',	'entities.hashtags',	'geo.place_id',	'geo.coordinates.type',	'geo.coordinates.coordinates',	
-                   'entities.cashtags']
-
-
-        client = tweepy.Client(
-            consumer_key=self.consumer_key,
-            consumer_secret=self.consumer_secret,
-            access_token=self.access_token,
-            access_token_secret=self.access_token_secret,
-            bearer_token=self.bearer_token,
-            wait_on_rate_limit=True
-        )
-
         query = self.create_query(hashtags_file)
       
         processed_query = query[0]
@@ -501,8 +492,7 @@ class TweetsDownloader:
 
                     
                     if os.path.isfile(tweets_file_name):
-                        # print('reading the file:', tweets_file_name)
-
+                        
                         if 'csv' in tweets_file_name:
                             df_date_temp = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='python')
                         else:
@@ -518,40 +508,114 @@ class TweetsDownloader:
                         continue
                     
                     print('Downloading tweets between:', temp_start_date, 'and', temp_end_date)
+                    
+                    self.download_tweets_using_paginator(query=query_list[x], start_time=temp_start_date, end_time=temp_end_date,
+                                                        max_results=limit_tweets, total_of_tweets=total_of_tweets, 
+                                                        tweets_file_name=tweets_file_name, separator=separator,
+                                                        chunck_size_to_save=chunck_size_to_save, save_on_disk=save_on_disk,
+                                                        print_query=True)
 
-                    # # print(temp_start_date)
-                    # # print(temp_end_date)
-                    # # print('--------------')
+    def download_replies_tweepy(self, conversation_id, start_date, end_date, tweets_file_name):
+
+        # query = 'to:'+username+' in_reply_to_tweet_id:'+conversation_id
+        query =' conversation_id:'+conversation_id+' '
+
+        self.download_tweets_using_paginator(query=query, start_time=start_date, end_time=end_date, max_results=100, total_of_tweets=float('inf'),
+                                            tweets_file_name=tweets_file_name, separator='|', chunck_size_to_save=500, save_on_disk=True)
+
+    def expand_replies(self, replies_filename, start_date, end_date):
+        df = pd.read_csv(replies_filename, sep='|')
+
+        tweets_with_replies = df[df['public_metrics.reply_count'] > 0]        
+        tweets_with_replies = self.dig_for_tweets_replies(tweets_with_replies, start_date, end_date)
+
+        return tweets_with_replies
+        
+    def dig_for_tweets_replies(self, tweets_with_replies, start_date, end_date):
+        if tweets_with_replies.shape[0] == 0:
+            return pd.DataFrame()        
+
+        client = tweepy.Client(
+            consumer_key=self.consumer_key,
+            consumer_secret=self.consumer_secret,
+            access_token=self.access_token,
+            access_token_secret=self.access_token_secret,
+            bearer_token=self.bearer_token,
+            wait_on_rate_limit=True
+        )
+
+        tweets_pool = []
+        for id in tweets_with_replies['id'].values:
+            tweets_temp = client.search_all_tweets(query='in_reply_to_tweet_id:'+str(id), start_time=start_date, end_time=end_date,
+                                                        max_results=10, # 500
+                                                        expansions=self.expansions, media_fields=self.media_fields, 
+                                                        tweet_fields=self.tweet_fields, poll_fields=self.poll_fields, 
+                                                        place_fields=self.place_fields, user_fields=self.user_fields)
+
+            # tweets_temp = self.download_tweets_using_paginator(query='in_reply_to_tweet_id:'+str(id), 
+            #                                                    start_time=start_date, end_time=end_date, max_results=10, 
+            #                                                    total_of_tweets=10, tweets_file_name='', 
+            #                                                    separator='|', chunck_size_to_save=500, save_on_disk=False,
+            #                                                    limit_calls_api=1)
+
+            tweets_pool.append(tweets_temp)
+        
+        replies_df = pd.DataFrame(tweets_pool, sep='|')
+
+        replies_df = replies_df[replies_df['public_metrics.reply_count'] > 0]        
+
+        return pd.concat([tweets_with_replies, self.dig_for_tweets_replies(replies_df, start_date, end_date)])
+            
+
+    def download_tweets_using_paginator(self, query, start_time, end_time, max_results, total_of_tweets, tweets_file_name, 
+                                        separator, chunck_size_to_save, save_on_disk, print_query=True, limit_calls_api=float('inf')):
+        
+        client = tweepy.Client(
+            consumer_key=self.consumer_key,
+            consumer_secret=self.consumer_secret,
+            access_token=self.access_token,
+            access_token_secret=self.access_token_secret,
+            bearer_token=self.bearer_token,
+            wait_on_rate_limit=True
+        )
+
+        download_tweets = True
                     
-                    download_tweets = True
+        while download_tweets:
+            try:
+                if print_query:
+                    print('QUERY:', query)
+
+                tweets_pool = []
+                # https://dev.to/twitterdev/a-comprehensive-guide-for-using-the-twitter-api-v2-using-tweepy-in-python-15d9
+                for i, tweet in enumerate(tweepy.Paginator(client.search_all_tweets, query=query, 
+                                                        start_time=start_time, end_time=end_time,
+                                                        max_results=max_results, # 500
+                                                        limit=limit_calls_api,
+                                                        expansions=self.expansions, media_fields=self.media_fields, 
+                                                        tweet_fields=self.tweet_fields, poll_fields=self.poll_fields, 
+                                                        place_fields=self.place_fields, user_fields=self.user_fields).flatten(total_of_tweets)):
                     
-                    while download_tweets:
-                        try:
+                    # print(tweet.data)
+                    tweets_pool.append(tweet.data)
+
+                    if i % chunck_size_to_save == 0 and i > 0:
+                        if save_on_disk:
+                            self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, self.columns)
                             tweets_pool = []
-                            print('QUERY:', query_list[x])
-                            # https://dev.to/twitterdev/a-comprehensive-guide-for-using-the-twitter-api-v2-using-tweepy-in-python-15d9
-                            for i, tweet in enumerate(tweepy.Paginator(client.search_all_tweets, query=query_list[x], 
-                                                                    start_time=temp_start_date, end_time=temp_end_date, max_results=limit_tweets, # 500
-                                                                    expansions=expansions, media_fields=media_fields, tweet_fields=tweet_fields,
-                                                                    poll_fields=poll_fields, place_fields=place_fields, user_fields=user_fields).flatten(total_of_tweets)):
-                                
-                                tweets_pool.append(tweet.data)
+                        time.sleep(3)
+                
+                if len(tweets_pool) > 0:
+                    self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, self.columns)
+                
+                download_tweets = False
 
-                                if i % chunck_size_to_save == 0 and i > 0:
-                                    if save_on_disk:
-                                        self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
-                                        tweets_pool = []
-                                    time.sleep(3)
-                            
-                            if len(tweets_pool) > 0:
-                                self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, columns)
-                            
-                            download_tweets = False
+            except Exception as e:
+                print(e)
 
-                        except Exception as e:
-                            print(e)
-
-                            time.sleep(5) # '''
+                time.sleep(5) # '''
+        
+        return tweets_pool
 
     def conver_string_to_twitter_date(self, string):
         return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ")

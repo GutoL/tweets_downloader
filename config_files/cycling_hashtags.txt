@@ -32,7 +32,6 @@ kevyenliikenteenväylä
 pyöräily
 pyöräillä
 pyöräilijä
-ciclo
 bicicleta
 ciclismo
 ciclista
@@ -51,7 +50,6 @@ Bicing
 #Respectelabici
 #BiciCat
 Ciclável
-ciclo
 bicicleta
 ciclismo
 ciclista
