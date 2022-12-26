@@ -20,4 +20,10 @@ for filename in os.listdir():
 
 df.sort_values(by='created_at', inplace=True)
 
+filter_columns = {'lang':'en'}
+
+if filter_columns:
+    for column in filter_columns:
+        df = df[df[column] == filter_columns[column]]
+
 df.to_csv(sys.argv[1], sep=sep)
