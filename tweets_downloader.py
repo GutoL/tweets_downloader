@@ -345,7 +345,7 @@ class TweetsDownloader:
     # Your queries will be limited depending on which access level you are using. 
     # If you have Essential or Elevated access, your query can be 512 characters long.
     # If you have Academic Research access, your query can be 1024 characters long. 
-    def break_query(self, query, language=None, usernames_file=None):
+    def break_query(self, query, language=None, usernames_file=None, from_users=True):
         
       # Dealing with the language
       if language is None or len(language) == 0:
@@ -365,9 +365,12 @@ class TweetsDownloader:
 
         for i, user in enumerate(lines):
             user = user.strip()
-            user = user.replace('@','')
             
-            usernames += 'from:'+user
+            if from_users:
+                user = user.replace('@','')
+                usernames += 'from:'+user
+            else:
+                usernames += user
             
             if i == len(lines)-1:
                 usernames += ') '                
@@ -419,9 +422,9 @@ class TweetsDownloader:
         return temp_query
 
 
-    def download_tweets_tweepy(self, hashtags_file, usernames_file, start_date_list, end_date_list, time_interval_break, 
+    def download_tweets_tweepy(self, hashtags_file, usernames_from_file, start_date_list, end_date_list, time_interval_break, 
                         limit_tweets=100, chunck_size_to_save=1000, total_of_tweets=None, language=None, file_extension='csv', separator=',', 
-                        save_on_disk=True):
+                        save_on_disk=True, from_users=True):
         
         if not total_of_tweets:
             total_of_tweets = float('inf')
@@ -433,8 +436,9 @@ class TweetsDownloader:
         for term in query[1:]:
             processed_query += ' OR ' + term
         
-        query_list = self.break_query(processed_query, language=language, usernames_file=usernames_file)
+        query_list = self.break_query(processed_query, language=language, usernames_file=usernames_from_file, from_users=from_users)
 
+        
         # query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
         
         if 'csv' in file_extension:
@@ -514,6 +518,7 @@ class TweetsDownloader:
                                                         tweets_file_name=tweets_file_name, separator=separator,
                                                         chunck_size_to_save=chunck_size_to_save, save_on_disk=save_on_disk,
                                                         print_query=True)
+                    time.sleep(2) # '''
 
     def download_replies_tweepy(self, conversation_id, start_date, end_date, tweets_file_name):
 
@@ -686,7 +691,7 @@ class TweetsDownloader:
 
     def download_tweets(self, hashtags_file, start_date_list, end_date_list, limit_tweets_per_period, 
                         time_interval_break, language=None, file_extension='csv', separator=',', 
-                        number_of_tweets_per_call=100, save_on_disk=True):    
+                        number_of_tweets_per_call=100, save_on_disk=True, from_users=True):    
       
       # Max tweets per time period. If you define that there is no limit, 
       # this variable will be not considered
@@ -701,7 +706,7 @@ class TweetsDownloader:
       for term in query[1:]:
         processed_query += ' OR ' + term
     
-      query_list = self.break_query(processed_query, language=language)
+      query_list = self.break_query(processed_query, language=language, from_users=from_users)
 
       query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
       

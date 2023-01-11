@@ -2,10 +2,10 @@
     "query_file":"config_files/footbal_hashtags.txt",
     "usernames_file": "config_files/usernames.txt",
     "keys_filename":"config_files/twitter_keys.yml",
-    "key_set": "search_tweets_v2",
+    "key_set": "theo_account",
     "path_to_google_cloud_private_key_file":"config_files/stable-plasma-690-686708fe9d44.json",
-    "start_list":["2022-10-11 00:00:00"],
-    "end_list":["2022-11-11 23:59:59"],
+    "start_list":["2019-03-20 00:00:00"],
+    "end_list":["2019-04-20 23:59:59"],
     "results_path": "results/",
     
     "time_interval_break":{"days":1},
