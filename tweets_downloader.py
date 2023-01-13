@@ -61,6 +61,16 @@ class TweetsDownloader:
                    'public_metrics.reply_count',	'public_metrics.like_count',	'public_metrics.quote_count',	'entities.annotations',	'entities.urls',	
                    'attachments.media_keys',	'entities.hashtags',	'geo.place_id',	'geo.coordinates.type',	'geo.coordinates.coordinates',	
                    'entities.cashtags']
+        user_columns = ['user.id', 'user.id_str', 'user.name', 'user.screen_name', 'user.location', 'user.profile_location', 
+                        'user.description', 'user.url', 'user.entities', 'user.protected', 'user.followers_count', 'user.friends_count', 
+                        'user.listed_count', 'user.created_at', 'user.favourites_count', 'user.utc_offset', 'user.time_zone', 'user.geo_enabled',
+                        'user.verified', 'user.statuses_count', 'user.lang', 'user.status', 'user.contributors_enabled', 'user.is_translator', 'user.is_translation_enabled', 
+                        'user.profile_background_color', 'user.profile_background_image_url', 'user.profile_background_image_url_https', 'user.profile_background_tile', 
+                        'user.profile_image_url', 'user.profile_image_url_https', 'user.profile_banner_url', 'user.profile_link_color', 'user.profile_sidebar_border_color', 
+                        'user.profile_sidebar_fill_color', 'user.profile_text_color', 'user.profile_use_background_image', 'user.has_extended_profile', 'user.default_profile', 
+                        'user.default_profile_image', 'user.following', 'user.follow_request_sent', 'user.notifications', 'user.translator_type', 'user.withheld_in_countries']
+        
+        self.columns += user_columns
 
     def read_credentials(self, keys_filename, key_set):
         with open(keys_filename) as file:
@@ -345,7 +355,7 @@ class TweetsDownloader:
     # Your queries will be limited depending on which access level you are using. 
     # If you have Essential or Elevated access, your query can be 512 characters long.
     # If you have Academic Research access, your query can be 1024 characters long. 
-    def break_query(self, query, language=None, usernames_file=None, from_users=True):
+    def break_query(self, query, language=None, usernames_file=None, from_users=True, exclude_retweets=False):
         
       # Dealing with the language
       if language is None or len(language) == 0:
@@ -377,12 +387,12 @@ class TweetsDownloader:
             else:
                 usernames += ' OR '
 
-      if len(self.create_temp_query(query, language, usernames)) > self.maximum_query_size:
+      if len(self.create_temp_query(query, language, usernames, exclude_retweets)) > self.maximum_query_size:
 
         hashtags = query.split('OR')
         hashtags_chunks = []
 
-        temp_query = self.create_temp_query('', language, usernames)
+        temp_query = self.create_temp_query('', language, usernames, exclude_retweets)
 
         for i, hashtag in enumerate(hashtags):
           if len(temp_query+' OR '+hashtag) <= self.maximum_query_size:
@@ -394,15 +404,18 @@ class TweetsDownloader:
           else:
             hashtags_chunks.append(temp_query)
 
-            temp_query = self.create_temp_query(hashtag, language, usernames)
+            temp_query = self.create_temp_query(hashtag, language, usernames, exclude_retweets)
 
         return hashtags_chunks
       
       else:
-        return [self.create_temp_query(query, language, usernames)]
+        return [self.create_temp_query(query, language, usernames, exclude_retweets)]
 
-    def create_temp_query(self, query, language, usernames, query_first=False):
-        temp_query = ''
+    def create_temp_query(self, query, language, usernames, exclude_retweets, query_first=False):
+        if exclude_retweets:
+            temp_query = '-is:retweet '
+        else:
+            temp_query = ''
         
         if query_first:
             temp_query = '('+query+ ') '
@@ -424,7 +437,7 @@ class TweetsDownloader:
 
     def download_tweets_tweepy(self, hashtags_file, usernames_from_file, start_date_list, end_date_list, time_interval_break, 
                         limit_tweets=100, chunck_size_to_save=1000, total_of_tweets=None, language=None, file_extension='csv', separator=',', 
-                        save_on_disk=True, from_users=True):
+                        save_on_disk=True, from_users=True, exclude_retweets=False):
         
         if not total_of_tweets:
             total_of_tweets = float('inf')
@@ -436,7 +449,7 @@ class TweetsDownloader:
         for term in query[1:]:
             processed_query += ' OR ' + term
         
-        query_list = self.break_query(processed_query, language=language, usernames_file=usernames_from_file, from_users=from_users)
+        query_list = self.break_query(processed_query, language=language, usernames_file=usernames_from_file, from_users=from_users, exclude_retweets=exclude_retweets)
 
         
         # query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
@@ -576,6 +589,15 @@ class TweetsDownloader:
             wait_on_rate_limit=True
         )
 
+        # authorization of consumer key and consumer secret
+        auth = tweepy.OAuthHandler(self.consumer_key, self.consumer_secret)
+        
+        # set access to user's access key and access secret 
+        auth.set_access_token(self.access_token, self.access_token_secret)
+        
+        # calling the api 
+        api = tweepy.API(auth)
+
         download_tweets = True
                     
         while download_tweets:
@@ -597,8 +619,13 @@ class TweetsDownloader:
                                                         user_fields=self.user_fields
                                                         ).flatten(total_of_tweets)):
                     
-                    # print(tweet.data)
+                    user = api.get_user(user_id=tweet['author_id'])
+                    user = {'user.'+key: value  for key, value in user.__dict__['_json'].items()}
+
+                    tweet.data.update(user)
+
                     tweets_pool.append(tweet.data)
+                    
                     
                     if i % chunck_size_to_save == 0 and i > 0:
                         if save_on_disk:
