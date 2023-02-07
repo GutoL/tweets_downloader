@@ -15,8 +15,11 @@ import os
 from datetime import datetime, timedelta
 import time
 import re
-
 import tweepy
+
+from twarc.client2 import Twarc2
+from twarc.expansions import ensure_flattened
+from twarc_csv import DataFrameConverter # CSVConverter
 
 class TweetsDownloader:
     def __init__(self, keys_filename, key_set, path_to_google_cloud_private_key_file=None, results_path=None,
@@ -54,6 +57,43 @@ class TweetsDownloader:
 
         self.user_fields=['created_at','description','entities','id','location','name','pinned_tweet_id','profile_image_url',
                     'protected','public_metrics','url', 'username','verified','withheld']
+        
+
+        self.twarc_columns = ['id', 'conversation_id', 'referenced_tweets.replied_to.id',
+                            'referenced_tweets.retweeted.id', 'referenced_tweets.quoted.id',
+                            'author_id', 'in_reply_to_user_id', 'in_reply_to_username',
+                            'retweeted_user_id', 'retweeted_username', 'quoted_user_id',
+                            'quoted_username', 'created_at', 'text', 'lang', 'source',
+                            'public_metrics.impression_count', 'public_metrics.reply_count',
+                            'public_metrics.retweet_count', 'public_metrics.quote_count',
+                            'public_metrics.like_count', 'reply_settings', 'edit_history_tweet_ids',
+                            'edit_controls.edits_remaining', 'edit_controls.editable_until',
+                            'edit_controls.is_edit_eligible', 'possibly_sensitive',
+                            'withheld.scope', 'withheld.copyright', 'withheld.country_codes',
+                            'entities.annotations', 'entities.cashtags', 'entities.hashtags',
+                            'entities.mentions', 'entities.urls', 'context_annotations',
+                            'attachments.media', 'attachments.media_keys',
+                            'attachments.poll.duration_minutes', 'attachments.poll.end_datetime',
+                            'attachments.poll.id', 'attachments.poll.options',
+                            'attachments.poll.voting_status', 'attachments.poll_ids', 'author.id',
+                            'author.created_at', 'author.username', 'author.name',
+                            'author.description', 'author.entities.description.cashtags',
+                            'author.entities.description.hashtags',
+                            'author.entities.description.mentions',
+                            'author.entities.description.urls', 'author.entities.url.urls',
+                            'author.url', 'author.location', 'author.pinned_tweet_id',
+                            'author.profile_image_url', 'author.protected',
+                            'author.public_metrics.followers_count',
+                            'author.public_metrics.following_count',
+                            'author.public_metrics.listed_count',
+                            'author.public_metrics.tweet_count', 'author.verified',
+                            'author.verified_type', 'author.withheld.scope',
+                            'author.withheld.copyright', 'author.withheld.country_codes',
+                            'geo.coordinates.coordinates', 'geo.coordinates.type', 'geo.country',
+                            'geo.country_code', 'geo.full_name', 'geo.geo.bbox', 'geo.geo.type',
+                            'geo.id', 'geo.name', 'geo.place_id', 'geo.place_type',
+                            'matching_rules', '__twarc.retrieved_at', '__twarc.url',
+                            '__twarc.version']
 
         self.columns = ['conversation_id', 'possibly_sensitive', 'id', 'author_id',	'context_annotations',	'source',	'created_at',	'reply_settings',	
                     'text', 'edit_history_tweet_ids',	'referenced_tweets',	'lang',	'in_reply_to_user_id',	'edit_controls.edits_remaining',
@@ -356,7 +396,7 @@ class TweetsDownloader:
     # If you have Essential or Elevated access, your query can be 512 characters long.
     # If you have Academic Research access, your query can be 1024 characters long. 
     def break_query(self, query, language=None, usernames_file=None, from_users=True, exclude_retweets=False):
-        
+      
       # Dealing with the language
       if language is None or len(language) == 0:
         language = ''
@@ -364,6 +404,7 @@ class TweetsDownloader:
         language = 'lang:'+language
       
       # Dealing with the usernames
+
       if usernames_file is None or len(usernames_file) == 0:
         usernames = ''
       else:
@@ -386,14 +427,16 @@ class TweetsDownloader:
                 usernames += ') '                
             else:
                 usernames += ' OR '
-
+      
+      # Creating the query or the list of queries
       if len(self.create_temp_query(query, language, usernames, exclude_retweets)) > self.maximum_query_size:
 
         hashtags = query.split('OR')
-        hashtags_chunks = []
+        
+        query_chunks = []
 
         temp_query = self.create_temp_query('', language, usernames, exclude_retweets)
-
+        
         for i, hashtag in enumerate(hashtags):
           if len(temp_query+' OR '+hashtag) <= self.maximum_query_size:
             if i == 0:
@@ -402,23 +445,27 @@ class TweetsDownloader:
               temp_query += ' OR '+hashtag
 
           else:
-            hashtags_chunks.append(temp_query)
+            query_chunks.append(temp_query)
 
-            temp_query = self.create_temp_query(hashtag, language, usernames, exclude_retweets)
+            temp_query = self.create_temp_query(hashtag, language, usernames, exclude_retweets)            
 
-        return hashtags_chunks
+        return query_chunks
       
       else:
         return [self.create_temp_query(query, language, usernames, exclude_retweets)]
 
     def create_temp_query(self, query, language, usernames, exclude_retweets, query_first=False):
+        
         if exclude_retweets:
             temp_query = '-is:retweet '
         else:
             temp_query = ''
         
         if query_first:
-            temp_query = '('+query+ ') '
+            if len(query) == 0:
+                temp_query += ''
+            else:
+                temp_query += '('+query+ ') '
 
         if len(usernames) > 0:
             temp_query += usernames
@@ -430,12 +477,15 @@ class TweetsDownloader:
             temp_query += ' '
         
         if not query_first:
-            temp_query += '('+query+ ') '
+            if len(query) == 0:
+                temp_query += ''
+            else:
+                temp_query += '('+query+ ') '
 
         return temp_query
 
 
-    def download_tweets_tweepy(self, hashtags_file, usernames_from_file, start_date_list, end_date_list, time_interval_break, 
+    def download_tweets_best(self, hashtags_file, usernames_from_file, start_date_list, end_date_list, time_interval_break, 
                         limit_tweets=100, chunck_size_to_save=1000, total_of_tweets=None, language=None, file_extension='csv', separator=',', 
                         save_on_disk=True, from_users=True, exclude_retweets=False):
         
@@ -443,15 +493,13 @@ class TweetsDownloader:
             total_of_tweets = float('inf')
 
         query = self.create_query(hashtags_file)
-      
+
         processed_query = query[0]
 
         for term in query[1:]:
             processed_query += ' OR ' + term
         
         query_list = self.break_query(processed_query, language=language, usernames_file=usernames_from_file, from_users=from_users, exclude_retweets=exclude_retweets)
-
-        
         # query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
         
         if 'csv' in file_extension:
@@ -525,14 +573,51 @@ class TweetsDownloader:
                         continue
                     
                     print('Downloading tweets between:', temp_start_date, 'and', temp_end_date)
+                    print('QUERY:', query_list[x])
+                    print('-------------------------------------')
                     
-                    self.download_tweets_using_paginator(query=query_list[x], start_time=temp_start_date, end_time=temp_end_date,
-                                                        max_results=limit_tweets, total_of_tweets=total_of_tweets, 
+                    # self.download_tweets_with_tweepy_using_paginator(query=query_list[x], start_time=temp_start_date, end_time=temp_end_date,
+                    #                                     max_results=limit_tweets, total_of_tweets=total_of_tweets, 
+                    #                                     tweets_file_name=tweets_file_name, separator=separator,
+                    #                                     chunck_size_to_save=chunck_size_to_save, save_on_disk=save_on_disk,
+                    #                                     print_query=True)
+
+                    self.download_tweets_with_twarc(query=query_list[x], start_time=temp_start_date, end_time=temp_end_date,
+                                                        max_number_of_tweets=limit_tweets, total_of_tweets=total_of_tweets, 
                                                         tweets_file_name=tweets_file_name, separator=separator,
-                                                        chunck_size_to_save=chunck_size_to_save, save_on_disk=save_on_disk,
-                                                        print_query=True)
+                                                        chunck_size_to_save=chunck_size_to_save)
+                    
                     time.sleep(2) # '''
 
+    # https://twarc-project.readthedocs.io/en/latest/api/library/
+    def download_tweets_with_twarc(self, query, start_time, end_time, max_number_of_tweets, total_of_tweets,
+                                    tweets_file_name, separator, chunck_size_to_save):
+        
+
+        t = Twarc2(bearer_token=self.bearer_token)
+
+        search_results = t.search_all(query=query, start_time=start_time, end_time=end_time, max_results=max_number_of_tweets)
+
+        tweets_pool = []
+
+        # Get all results page by page:
+        for page in search_results:
+            # Do something with the whole page of results:
+            # print(page)
+            # or alternatively, "flatten" results returning 1 tweet at a time, with expansions inline:
+            
+            for tweet in ensure_flattened(page):
+                # Do something with the tweet
+                tweets_pool.append(tweet)
+                # print(tweet['text'])
+            
+            if len(tweets_pool) > chunck_size_to_save:
+                self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, using_twarc=True)
+                tweets_pool = []
+        
+        if len(tweets_pool) > 0:
+            self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, using_twarc=True)
+            
     def download_replies_tweepy(self, conversation_id, start_date, end_date, tweets_file_name):
 
         # query = 'to:'+username+' in_reply_to_tweet_id:'+conversation_id
@@ -577,7 +662,7 @@ class TweetsDownloader:
         return pd.concat([replies_df, self.dig_for_tweets_replies(new_tweets_to_collect, start_date, end_date, filename, False)]) 
             
 
-    def download_tweets_using_paginator(self, query, start_time, end_time, max_results, total_of_tweets, tweets_file_name, 
+    def download_tweets_with_tweepy_using_paginator(self, query, start_time, end_time, max_results, total_of_tweets, tweets_file_name, 
                                         separator, chunck_size_to_save, save_on_disk, print_query=True, limit_calls_api=float('inf')):
         
         client = tweepy.Client(
@@ -602,10 +687,11 @@ class TweetsDownloader:
                     
         while download_tweets:
             try:
-                if print_query:
-                    print('QUERY:', query)
-
+                # if print_query:
+                #     print('QUERY:', query)
+                
                 tweets_pool = []
+                
                 # https://dev.to/twitterdev/a-comprehensive-guide-for-using-the-twitter-api-v2-using-tweepy-in-python-15d9
                 for i, tweet in enumerate(tweepy.Paginator(client.search_all_tweets, query=query, 
                                                         start_time=start_time, end_time=end_time,
@@ -625,23 +711,28 @@ class TweetsDownloader:
                     tweet.data.update(user)
 
                     tweets_pool.append(tweet.data)
-                    
+
+                    print(tweet.data['text'])
                     
                     if i % chunck_size_to_save == 0 and i > 0:
                         if save_on_disk:
-                            self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, self.columns)
+                            self.save_tweets_on_disk(tweets_file_name=tweets_file_name, tweets_pool=tweets_pool, separator=separator, using_twarc=False)
                             tweets_pool = []
                         time.sleep(3)
                 
+                print('Waiting 2 seconds...')
+                # time.sleep(2) # in order to avoid the limit rate...
+
                 if len(tweets_pool) > 0:
-                    self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, self.columns)
+                    self.save_tweets_on_disk(tweets_file_name=tweets_file_name, tweets_pool=tweets_pool, separator=separator, using_twarc=False)
                 
-                download_tweets = False
+                download_tweets = False # '''
 
             except Exception as e:
                 print(e)
 
-                time.sleep(5) # '''
+                print('Waiting 5 seconds...')
+                time.sleep(5) 
         
         return tweets_pool
 
@@ -688,7 +779,17 @@ class TweetsDownloader:
 
         return path+'tweets_'+latest_file+'_group_'+str(group)+file_extension, new_start_date, new_end_date
                 
-    def save_tweets_on_disk(self, tweets_file_name, tweets_pool, separator, columns):
+    def save_tweets_on_disk(self, tweets_file_name, tweets_pool, separator, using_twarc=False):
+        
+        if using_twarc:
+            # Default options for Dataframe converter
+            converter = DataFrameConverter()
+            new_df = converter.process(tweets_pool) 
+            
+        else:
+            new_df = pd.json_normalize(tweets_pool)
+            
+        columns = new_df.columns            
 
         if os.path.isfile(tweets_file_name):
             if 'csv' in tweets_file_name:
@@ -701,7 +802,7 @@ class TweetsDownloader:
 
         print('Saving more', len(tweets_pool), 'tweets at this time. Total number of tweets collected:', df.shape[0])
         
-        tweets_df = pd.concat([df, pd.json_normalize(tweets_pool)], ignore_index=True)
+        tweets_df = pd.concat([df, new_df], ignore_index=True)
 
         # print('Saving:')
         # print(tweets_df)        

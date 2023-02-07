@@ -32,7 +32,7 @@ if len(config['start_list']) != len(config['end_list']):
 #                                   limit_tweets_per_period=False,
 #                                   save_on_disk=True)
 
-tweets_downloader.download_tweets_tweepy(hashtags_file=config['query_file'], 
+tweets_downloader.download_tweets_best(hashtags_file=config['query_file'], 
                                   usernames_from_file=config['usernames_file'],
                                   start_date_list=config['start_list'], 
                                   end_date_list=config['end_list'], 
@@ -42,7 +42,7 @@ tweets_downloader.download_tweets_tweepy(hashtags_file=config['query_file'],
                                   time_interval_break=config["time_interval_break"],
                                   limit_tweets=config['number_of_tweets_per_call'],
                                   chunck_size_to_save=5000,
-                                  total_of_tweets= 11, # None,
+                                  total_of_tweets=None,
                                   save_on_disk=True,
                                   from_users=False,
                                   exclude_retweets=config['exclude_retweets'])
