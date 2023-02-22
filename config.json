@@ -1,18 +1,19 @@
 {
-    "query_file":"config_files/elections.txt",
+    "query_file":"config_files/up_the_ra_query.txt",
     "usernames_file": "",
-    "keys_filename":"config_files/keys.yaml",
-    "key_set": "theo_keys",
+    "keys_filename":"config_files/twitter_keys.yml",
+    "key_set": "katie_account",
     "path_to_google_cloud_private_key_file":"",
-    "start_list":["2022-09-28 00:00:00"],
-    "end_list":["2022-09-30 23:59:59"],
+    "start_list":["2019-03-20 00:00:00"],
+    "end_list":["2019-04-20 23:59:59"],
     "results_path": "results/",
     
     "time_interval_break":{"days":1},
-    "language": "pt",
+    "language": "",
     "exclude_retweets": false,
     "file_extension": "csv",
-    "separator": "|",
+    "separator": ",",
     "number_of_tweets_per_call": 100,
-    "academic_privilege": true
+    "academic_privilege": true,
+    "save_using_twarc_chunk":false
 }

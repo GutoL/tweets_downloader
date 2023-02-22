@@ -32,7 +32,7 @@ if len(config['start_list']) != len(config['end_list']):
 #                                   limit_tweets_per_period=False,
 #                                   save_on_disk=True)
 
-tweets_downloader.download_tweets_best(hashtags_file=config['query_file'], 
+tweets_downloader.download_tweets(hashtags_file=config['query_file'], 
                                   usernames_from_file=config['usernames_file'],
                                   start_date_list=config['start_list'], 
                                   end_date_list=config['end_list'], 
@@ -44,5 +44,6 @@ tweets_downloader.download_tweets_best(hashtags_file=config['query_file'],
                                   chunck_size_to_save=5000,
                                   total_of_tweets=None,
                                   save_on_disk=True,
-                                  from_users=False,
-                                  exclude_retweets=config['exclude_retweets'])
+                                  from_users=True,
+                                  exclude_retweets=config['exclude_retweets'],
+                                  save_using_twarc_chunk=config['save_using_twarc_chunk'])
