@@ -227,24 +227,34 @@ class TweetsDownloader:
 
     def download_tweets(self, hashtags_file, usernames_from_file, start_date_list, end_date_list, time_interval_break, 
                         limit_tweets=100, chunck_size_to_save=1000, total_of_tweets=None, language=None, file_extension='csv', separator=',', 
-                        save_on_disk=True, from_users=True, exclude_retweets=False, save_using_twarc_chunk=False):
+                        save_on_disk=True, from_users=True, exclude_retweets=False, save_using_twarc_chunk=False,
+                        generate_query=False):
         
         if not total_of_tweets:
             total_of_tweets = float('inf')
 
-        query = self.create_query(hashtags_file)
+        if not generate_query:
+            fp = open(hashtags_file, 'r')
+            query_list = [fp.read()]
+            fp.close()
 
-        if len(query) > 0:
-            processed_query = query[0] # getting the firt term to create the query
+            if len(query_list[0]) > self.maximum_query_size:
+                Exception('Your query is too long. The maximum size is', self.maximum_query_size, 'but yout query has the size', len(query_list[0]))
 
-            for term in query[1:]: # iterating over all terms except the first one
-                processed_query += ' OR ' + term
         else:
-            processed_query = query
-        
-        query_list = self.break_query(processed_query, language=language, usernames_file=usernames_from_file, from_users=from_users, 
-                                    exclude_retweets=exclude_retweets)
-        # query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
+            query = self.create_query(hashtags_file)
+            
+            if len(query) > 0:
+                processed_query = query[0] # getting the firt term to create the query
+
+                for term in query[1:]: # iterating over all terms except the first one
+                    processed_query += ' OR ' + term
+            else:
+                processed_query = query
+            
+            query_list = self.break_query(processed_query, language=language, usernames_file=usernames_from_file, from_users=from_users, 
+                                        exclude_retweets=exclude_retweets)
+            # query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
         
         if 'csv' in file_extension:
             file_extension = '.csv'
@@ -302,7 +312,7 @@ class TweetsDownloader:
                     if os.path.isfile(tweets_file_name):
                         
                         if 'csv' in tweets_file_name:
-                            df_date_temp = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='python')
+                            df_date_temp = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='c', low_memory=False)
                         else:
                             df_date_temp = pd.read_excel(tweets_file_name, sheet_name='tweets')
 
@@ -442,7 +452,7 @@ class TweetsDownloader:
 
         if os.path.isfile(tweets_file_name):
             if 'csv' in tweets_file_name:
-                df = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='python')
+                df = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='c', low_memory=False)
             else:
                 df = pd.read_excel(tweets_file_name, sheet_name='tweets')
         

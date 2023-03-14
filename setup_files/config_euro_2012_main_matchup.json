@@ -1,0 +1,20 @@
+{
+    "query_file":"config_files/euro_2012_main_matchup.txt",
+    "generate_query": true,
+    "usernames_file": "",
+    "keys_filename":"config_files/keys.yaml",
+    "key_set": "gary_account",
+    "path_to_google_cloud_private_key_file":"",
+    "start_list":["2012-06-08 00:00:00"],
+    "end_list":["2012-07-08 23:59:59"],
+    "results_path": "results_euro_2012_main_matchup/",
+    
+    "time_interval_break":{"days":1},
+    "language": "",
+    "exclude_retweets": false,
+    "file_extension": "csv",
+    "separator": ";",
+    "number_of_tweets_per_call": 100,
+    "academic_privilege": true,
+    "save_using_twarc_chunk":false
+}

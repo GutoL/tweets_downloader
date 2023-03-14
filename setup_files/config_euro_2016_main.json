@@ -1,0 +1,20 @@
+{
+    "query_file":"config_files/euro_2016_main.txt",
+    "generate_query": true,
+    "usernames_file": "",
+    "keys_filename":"config_files/keys.yaml",
+    "key_set": "theo_account",
+    "path_to_google_cloud_private_key_file":"",
+    "start_list":["2016-06-10 00:00:00"],
+    "end_list":["2016-07-17 23:59:59"],
+    "results_path": "results_euro_2016_main/",
+    
+    "time_interval_break":{"days":1},
+    "language": "",
+    "exclude_retweets": false,
+    "file_extension": "csv",
+    "separator": ";",
+    "number_of_tweets_per_call": 100,
+    "academic_privilege": true,
+    "save_using_twarc_chunk":false
+}
