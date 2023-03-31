@@ -1,13 +1,13 @@
 {
-    "query_file":"config_files/euro_2017_main.txt",
+    "query_file":"config_files/cycling.txt",
     "generate_query": true,
     "usernames_file": "",
     "keys_filename":"config_files/keys.yaml",
-    "key_set": "theo_account",
+    "key_set": "katie_account",
     "path_to_google_cloud_private_key_file":"",
-    "start_list":["2017-07-16 00:00:00"],
-    "end_list":["2017-08-13 23:59:59"],
-    "results_path": "results_euro_2017_main/",
+    "start_list":["2021-12-31 00:00:00"],
+    "end_list":["2022-11-01 23:59:59"],
+    "results_path": "results/results_cyling/",
     
     "time_interval_break":{"days":1},
     "language": "",

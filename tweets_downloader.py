@@ -312,13 +312,33 @@ class TweetsDownloader:
                     if os.path.isfile(tweets_file_name):
                         
                         if 'csv' in tweets_file_name:
-                            df_date_temp = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='c', low_memory=False)
-                        else:
-                            df_date_temp = pd.read_excel(tweets_file_name, sheet_name='tweets')
+                            
+                            # df_date_temp = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='c', low_memory=False)
+
+                            with open(tweets_file_name, "rb") as file:
+                                
+                                date_col_idx = 0
+                                for j, col in enumerate(file.readline().decode().split(separator)):
+                                    if col == 'created_at':
+                                        date_col_idx = j
+                                        break
+
+                                try:
+                                    file.seek(-2, os.SEEK_END)
+                                    while file.read(1) != b'\n':
+                                        file.seek(-2, os.SEEK_CUR)
+                                except OSError:
+                                    file.seek(0)
+                                last_line = file.readline().decode()
+
+                                last_date = last_line.split(separator)[date_col_idx]
+
+                        # else:
+                        #     df_date_temp = pd.read_excel(tweets_file_name, sheet_name='tweets')
 
                         # print(df_date_temp['created_at'].iloc[-1])
                         # new_end_date = datetime.strptime(df_date_temp['created_at'].iloc[-1], "%Y-%m-%dT%H:%M:%S.%fZ")
-                        new_end_date = df_date_temp['created_at'].iloc[-1]
+                        new_end_date = last_date # df_date_temp['created_at'].iloc[-1]
 
                         # print('temp_end_date',temp_end_date)
                         # print('new_end_date', new_end_date, type(new_end_date))
@@ -452,7 +472,22 @@ class TweetsDownloader:
 
         if os.path.isfile(tweets_file_name):
             if 'csv' in tweets_file_name:
-                df = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='c', low_memory=False)
+                file_size = os.stat(tweets_file_name).st_size / (1024 ** 3) # get the filesize
+
+                if file_size < 1: # if the file size is lower than 1gb
+                    df = pd.read_csv(tweets_file_name, sep=separator, encoding='utf-8', engine='c', low_memory=False)
+                else:
+                    df = pd.DataFrame(columns=columns)
+
+                    head, tail = os.path.split(tweets_file_name)
+
+                    try:
+                        idx = int(tweets_file_name[0])
+                        tweets_file_name = head+'/'+str(idx+1)+'_'+tail
+
+                    except:
+                        tweets_file_name = head+'/1_'+tail
+
             else:
                 df = pd.read_excel(tweets_file_name, sheet_name='tweets')
         
