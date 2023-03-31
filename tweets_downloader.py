@@ -101,11 +101,19 @@ class TweetsDownloader:
         if (len(hashtags_file) > 0) and (hashtags_file is not None):
             fp = open(hashtags_file, 'r', encoding="utf8")
 
-            hashtags_list = [hashtag.replace('\t', '').strip() for hashtag in fp.readlines()]
-            hashtags_list = ['"'+hashtag+'"' for hashtag in hashtags_list if len(hashtag) > 0]
-
+            temp_hashtags_list = [hashtag.replace('\t', '').strip() for hashtag in fp.readlines()]
+            
             fp.close()
-
+            
+            for hashtag in temp_hashtags_list:
+                if len(hashtag) > 0:
+                    if 'AND' in hashtag:
+                        hashtag = '('+hashtag+')'
+                    else:
+                        hashtag = '"'+hashtag+'"'
+                    
+                    hashtags_list.append(hashtag)
+                        
         return hashtags_list
 
 
