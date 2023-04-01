@@ -312,7 +312,6 @@ class TweetsDownloader:
                             fp.write(''.join(query_list[x]))
 
                     tweets_file_name, temp_start_date, temp_end_date = self.get_last_period_tweet_file(newpath, file_extension, x, temp_start_date, temp_end_date)
-                                        
                     # print(tweets_file_name, 'temp_start_date',temp_start_date, 'temp_end_date',temp_end_date)
 
                     if tweets_file_name == False: # if you don't get the filename from the folder, create the name of the new file
@@ -495,7 +494,8 @@ class TweetsDownloader:
         if len(latest_file) == 0:
             return False, start_date, end_date
 
-        return path+'tweets_'+latest_file+'_group_'+str(group)+file_extension, new_start_date, new_end_date
+        # return path+'tweets_'+latest_file+'_group_'+str(group)+file_extension, new_start_date, new_end_date
+        return latest_file, new_start_date, new_end_date
                 
     def save_tweets_on_disk(self, tweets_file_name, tweets_pool, separator, using_twarc=False):
         
