@@ -5,6 +5,8 @@ import yaml
 import glob
 import pandas as pd
 
+import re
+
 import json
 import os
 from datetime import datetime, timedelta
@@ -436,29 +438,58 @@ class TweetsDownloader:
         except ValueError:
             return ""
 
+
+    def get_last_file_for_same_period(self, files):
+        # Define a regular expression to extract the date and identifier from the file names
+        pattern = r'(\d*_)?tweets_(\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}\.\d{6}Z)_(\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}\.\d{6}Z)_group_\d+\.csv'
+
+        # Initialize variables to keep track of the lowest date and highest identifier
+        lowest_date = None
+        highest_identifier = -1
+        best_file = None
+        best_start_date = None
+        best_end_date = None
+
+        for file_name in files:
+            # Extract the date and identifier from the file name
+            match = re.search(pattern, file_name)
+            if match:
+                identifier_str, start_date_str, end_date_str = match.group(1, 2, 3)
+                if identifier_str is not None:
+                    identifier = int(identifier_str.strip('_'))
+                else:
+                    identifier = 0
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%dT%H_%M_%S.%fZ')
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%dT%H_%M_%S.%fZ')
+
+                # Check if this file has a lower date than the previous best file
+                if lowest_date is None or start_date.date() < lowest_date.date() or (start_date.date() == lowest_date.date() and identifier > highest_identifier):
+                    lowest_date = start_date
+                    highest_identifier = identifier
+                    best_file = file_name
+                    best_start_date = start_date
+                    best_end_date = end_date
+
+        # Return the file name, start date, and end date as strings
+        return best_file, str(best_start_date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")), str(best_end_date.strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+
+
     def get_last_period_tweet_file(self, path, file_extension, group, start_date, end_date):
 
-        files = [self.find_between(name, 'tweets_', '_group') for name in glob.glob(path+'*') if file_extension in name]
+        # files = [self.find_between(name, 'tweets_', '_group') for name in glob.glob(path+'*') if file_extension in name]
+        files = [name for name in glob.glob(path+'*') if file_extension in name]
         
         if len(files) == 0: # if there are no CSV files, return the same start and end date. The file name will be created in the another function
             return False, start_date, end_date
 
-        new_start_date = start_date
-        new_end_date = end_date
-        latest_file = ''
+        latest_file, start_date_from_file, end_date_from_file = self.get_last_file_for_same_period(files)
 
-        files.sort(reverse=True)
+        if end_date_from_file <= end_date and start_date_from_file <= start_date:
+            new_end_date = end_date_from_file
+            new_start_date = start_date_from_file
+        else:
+            latest_file = ''
 
-        for filename in files:
-            start_date_from_file = filename[0:filename.find('Z')+1].replace('_',':')
-            end_date_from_file = filename[filename.find('Z')+2: len(filename)].replace('_',':')
-            
-            if end_date_from_file <= new_end_date and start_date_from_file <= new_start_date:
-                new_end_date = end_date_from_file
-                new_start_date = start_date_from_file
-
-                latest_file = filename
-                
         # if the current end date is lower than all end dates from files, then consider the current end and start date, 
         # and the filename will be created in the another function
         if len(latest_file) == 0:
