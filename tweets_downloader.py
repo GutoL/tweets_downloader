@@ -109,9 +109,13 @@ class TweetsDownloader:
             
             for hashtag in temp_hashtags_list:
                 if len(hashtag) > 0:
-                    if 'AND' in hashtag:
+                    if '#' in hashtag or '@' in hashtag:
+                        pass
+
+                    elif 'AND' in hashtag:
                         hashtag = '('+hashtag+')'
-                    else:
+                        
+                    elif len(hashtag.split()) > 1:
                         hashtag = '"'+hashtag+'"'
                     
                     hashtags_list.append(hashtag)
@@ -253,6 +257,8 @@ class TweetsDownloader:
 
         else:
             query = self.create_query(hashtags_file)
+
+            
             
             if len(query) > 0:
                 processed_query = query[0] # getting the firt term to create the query
@@ -265,7 +271,7 @@ class TweetsDownloader:
             query_list = self.break_query(processed_query, language=language, usernames_file=usernames_from_file, from_users=from_users, 
                                         exclude_retweets=exclude_retweets)
             # query_list = [re.sub(' +', ' ', t_query) for t_query in query_list] # removing duplicate spaces
-        
+            
         if 'csv' in file_extension:
             file_extension = '.csv'
         else:
@@ -559,3 +565,4 @@ class TweetsDownloader:
         # self.gcs_manager.get_all_buckets_names()
         self.gcs_manager.download_data(bucket_name)
         self.gcs_manager.upload_file(self.results_path, bucket_name)
+
