@@ -16,6 +16,7 @@ from twarc.client2 import Twarc2
 from twarc.expansions import ensure_flattened
 from twarc_csv import DataFrameConverter, CSVConverter
 
+import tweepy
 
 # import sys
 # print(sys.maxsize)
@@ -566,3 +567,72 @@ class TweetsDownloader:
         self.gcs_manager.download_data(bucket_name)
         self.gcs_manager.upload_file(self.results_path, bucket_name)
 
+    
+    def download_replies_tweepy(self, conversation_id, start_date, end_date, tweets_file_name):
+
+        # query = 'to:'+username+' in_reply_to_tweet_id:'+conversation_id
+        query = 'in_reply_to_tweet_id:'+conversation_id
+
+        self.download_tweets_using_paginator(query=query, start_time=start_date, end_time=end_date, max_results=100, total_of_tweets=float('inf'),
+                                            tweets_file_name=tweets_file_name, separator='|', chunck_size_to_save=500, save_on_disk=True)
+
+    def expand_replies(self, replies_filename, start_date, end_date):
+        df = pd.read_csv(replies_filename, sep='|')
+
+        tweets_with_replies = df[df['public_metrics.reply_count'] > 0]        
+        tweets_with_replies = self.dig_for_tweets_replies(tweets_with_replies, start_date, end_date, 
+                                                          filename='results/replies', include=False)
+    
+    def download_tweets_using_paginator(self, query, start_time, end_time, max_results, total_of_tweets, tweets_file_name, 
+                                        separator, chunck_size_to_save, save_on_disk, print_query=True, limit_calls_api=float('inf')):
+        
+        client = tweepy.Client(
+            consumer_key=self.consumer_key,
+            consumer_secret=self.consumer_secret,
+            access_token=self.access_token,
+            access_token_secret=self.access_token_secret,
+            bearer_token=self.bearer_token,
+            wait_on_rate_limit=True
+        )
+
+        download_tweets = True
+                    
+        while download_tweets:
+            try:
+                if print_query:
+                    print('QUERY:', query)
+
+                tweets_pool = []
+                # https://dev.to/twitterdev/a-comprehensive-guide-for-using-the-twitter-api-v2-using-tweepy-in-python-15d9
+                for i, tweet in enumerate(tweepy.Paginator(client.search_all_tweets, query=query, 
+                                                        start_time=start_time, end_time=end_time,
+                                                        max_results=max_results, # 500
+                                                        limit=limit_calls_api,
+                                                        expansions=self.expansions, 
+                                                        media_fields=self.media_fields, 
+                                                        tweet_fields=self.tweet_fields, 
+                                                        poll_fields=self.poll_fields, 
+                                                        place_fields=self.place_fields, 
+                                                        user_fields=self.user_fields
+                                                        ).flatten(total_of_tweets)):
+                    
+                    # print(tweet.data)
+                    tweets_pool.append(tweet.data)
+                    
+                    if i % chunck_size_to_save == 0 and i > 0:
+                        if save_on_disk:
+                            self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, self.columns)
+                            tweets_pool = []
+                        time.sleep(3)
+                
+                if len(tweets_pool) > 0:
+                    self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, self.columns)
+                
+                download_tweets = False
+
+            except Exception as e:
+                print(e)
+
+                time.sleep(5) # '''
+        
+        return tweets_pool
