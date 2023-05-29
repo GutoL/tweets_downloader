@@ -85,11 +85,12 @@ class TwitterStreamming():
 
         # for count, result in enumerate(T.stream(event=event)):
         for result in T.stream(event=event):
-            batch_df = pd.concat([batch_df, json_normalize(result["data"])])
+            if 'data' in result:
+                batch_df = pd.concat([batch_df, json_normalize(result['data'])])
 
-            if batch_df.shape[0] > self.result_batch_size:
-                print('Total tweets collected:', batch_df.shape[0], 'in', self.results_path+result_file_name_to_save)
-                batch_df, result_file_name_to_save = self.save_file(batch_df, self.results_path, result_file_name_to_save)
+                if batch_df.shape[0] > self.result_batch_size:
+                    print('Total tweets collected:', batch_df.shape[0], 'in', self.results_path+result_file_name_to_save)
+                    batch_df, result_file_name_to_save = self.save_file(batch_df, self.results_path, result_file_name_to_save)
 
         '''
         # delete the rules
