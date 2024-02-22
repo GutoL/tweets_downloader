@@ -1,5 +1,5 @@
 
-from google_cloud_storage_manager import GoogleCloudStorageManager
+# from google_cloud_storage_manager import GoogleCloudStorageManager
 
 import yaml
 import glob
@@ -39,8 +39,8 @@ class TweetsDownloader:
             self.search_url = 'https://api.twitter.com/2/tweets/search/recent'
             self.maximum_query_size = 512
 
-        if path_to_google_cloud_private_key_file:
-          self.gcs_manager = GoogleCloudStorageManager(path_to_google_cloud_private_key_file)
+        # if path_to_google_cloud_private_key_file:
+        #   self.gcs_manager = GoogleCloudStorageManager(path_to_google_cloud_private_key_file)
 
         
         self.expansions=['author_id','referenced_tweets.id','referenced_tweets.id.author_id','entities.mentions.username',
@@ -259,8 +259,6 @@ class TweetsDownloader:
         else:
             query = self.create_query(hashtags_file)
 
-            
-            
             if len(query) > 0:
                 processed_query = query[0] # getting the firt term to create the query
 
@@ -279,6 +277,9 @@ class TweetsDownloader:
             file_extension = '.xlsx'
 
         for start_date, end_date in zip(start_date_list, end_date_list):
+            
+            print(start_date)
+            print(end_date)
 
             start_date = datetime.strptime(start_date, self.tweet_date_format).isoformat('T')+'Z'
             end_date = datetime.strptime(end_date, self.tweet_date_format).isoformat('T')+'Z'
@@ -308,6 +309,8 @@ class TweetsDownloader:
                 temp_start_date = dts[j-1]
                 temp_end_date = dts[j]
 
+                print(temp_start_date)
+                print(temp_end_date)
                 
                 for x in range(len(query_list)):
 
@@ -394,6 +397,8 @@ class TweetsDownloader:
         end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S.%fZ")
 
         search_results = t.search_all(query=query, start_time=start_time, end_time=end_time, max_results=max_number_of_tweets)
+
+        print(search_results)
 
         tweets_pool = []
 
@@ -556,18 +561,47 @@ class TweetsDownloader:
             with pd.ExcelWriter(tweets_file_name) as writer:  
                 tweets_df.to_excel(writer, sheet_name='tweets', columns=columns)
               
-    def upload_to_cloud_storage(self, bucket_name):
-        # bucket_name = 'guto_test_bucket'
+    # def upload_to_cloud_storage(self, bucket_name):
+    #     # bucket_name = 'guto_test_bucket'
 
-        # path_to_private_key_file = path+'config_files/stable-plasma-690-686708fe9d44.json'
+    #     # path_to_private_key_file = path+'config_files/stable-plasma-690-686708fe9d44.json'
 
-        # gcs_manager = GoogleCloudStorageManager(path_to_private_key_file)
+    #     # gcs_manager = GoogleCloudStorageManager(path_to_private_key_file)
 
-        # self.gcs_manager.get_all_buckets_names()
-        self.gcs_manager.download_data(bucket_name)
-        self.gcs_manager.upload_file(self.results_path, bucket_name)
+    #     # self.gcs_manager.get_all_buckets_names()
+    #     self.gcs_manager.download_data(bucket_name)
+    #     self.gcs_manager.upload_file(self.results_path, bucket_name)
 
-    
+    def download_quotes_tweepy(self, tweet_id, separator, tweets_file_name, start_time, end_time, exclude_rule='retweets', chunck_size_to_save=500, save_on_disk=True) :
+        client = tweepy.Client(bearer_token=self.bearer_token)
+        
+        try:
+            # Replace the limit=1000 with the maximum number of Tweets you want
+            for i, tweet in enumerate(tweepy.Paginator(client.get_quote_tweets, id=tweet_id, max_results=100,
+                                        expansions=self.expansions, 
+                                        start_time=start_time, end_time=end_time,
+                                        media_fields=self.media_fields, 
+                                        tweet_fields=self.tweet_fields, 
+                                        poll_fields=self.poll_fields, 
+                                        place_fields=self.place_fields, 
+                                        user_fields=self.user_fields,
+                                        exclude=exclude_rule).flatten(limit=float('inf'))):
+                print(tweet.data)
+                tweets_pool.append(tweet.data)
+                
+                if i % chunck_size_to_save == 0 and i > 0:
+                    if save_on_disk:
+                        self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, self.columns)
+                        tweets_pool = []
+                    time.sleep(3)
+            
+            if len(tweets_pool) > 0:
+                self.save_tweets_on_disk(tweets_file_name, tweets_pool, separator, self.columns)
+
+        except Exception as e:
+            print(e)
+            time.sleep(5) # '''
+            
     def download_replies_tweepy(self, conversation_id, start_date, end_date, tweets_file_name):
 
         # query = 'to:'+username+' in_reply_to_tweet_id:'+conversation_id
@@ -616,7 +650,7 @@ class TweetsDownloader:
                                                         user_fields=self.user_fields
                                                         ).flatten(total_of_tweets)):
                     
-                    # print(tweet.data)
+                    print(tweet.data)
                     tweets_pool.append(tweet.data)
                     
                     if i % chunck_size_to_save == 0 and i > 0:

@@ -1,8 +1,0 @@
-{
-    "keys_file":"keys.yaml",
-    "key_set": "search_tweets_v1",
-    "terms_file": "topic.txt",
-    "results_path": "streamming_results/",
-    "result_batch_size": 100,
-    "separator":","
-}

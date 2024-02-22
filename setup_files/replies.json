@@ -1,0 +1,9 @@
+{
+    "keys_file":"../config_files/keys.yaml",
+    "key_set": "guto_simple_account",
+    "results_path": "conversation_results/",
+    "result_batch_size": 100,
+    "separator":";",
+    "path_to_google_cloud_private_key_file":"",
+    "academic_privilege": false
+}
